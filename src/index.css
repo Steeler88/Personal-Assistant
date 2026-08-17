@@ -1,0 +1,28 @@
+/* Minimal reset. All visual styling comes from design-kit.tsx, which
+   injects its own <style> tag and defines the design tokens on :root. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: #000;
+  color: #fff;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Bind the design kit's optional font hooks to the families loaded in index.html */
+:root {
+  --font-inter: 'Inter';
+  --font-newsreader: 'Newsreader';
+  --font-jetbrains: 'JetBrains Mono';
+}
