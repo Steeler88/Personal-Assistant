@@ -1,4 +1,4 @@
-import { exchangeCode, saveTokens } from '../_whoop.js'
+import { exchangeCode, saveTokens, verifyState } from '../_whoop.js'
 
 /** Lands here after consent. Trades the code for tokens and stores them. */
 
@@ -12,19 +12,10 @@ function page(title, body, ok = true) {
 </div>`
 }
 
-function readCookie(header, name) {
-  return (header ?? '')
-    .split(';')
-    .map((c) => c.trim().split('='))
-    .find(([k]) => k === name)?.[1]
-}
-
 export default async function handler(req, res) {
   const { code, state, error: oauthError } = req.query ?? {}
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8')
-  // The state cookie has done its job either way.
-  res.setHeader('Set-Cookie', 'whoop_state=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0')
 
   if (oauthError) {
     return res.status(400).send(page('Whoop declined', `Whoop returned "${oauthError}".`, false))
@@ -33,11 +24,15 @@ export default async function handler(req, res) {
     return res.status(400).send(page('Missing code', 'Whoop did not return an authorization code.', false))
   }
 
-  // Reject a callback that did not originate from our own authorize step.
-  const expected = readCookie(req.headers.cookie, 'whoop_state')
-  if (!expected || state !== expected) {
+  // Reject a callback we did not start. The state is signed with the server
+  // secret, so this holds without relying on a cookie surviving the redirect.
+  if (!verifyState(state)) {
     return res.status(400).send(
-      page('State mismatch', 'This callback did not match the request that started it, so it was rejected.', false)
+      page(
+        'Could not verify this callback',
+        'The sign-in link was not one this app issued, or it sat unused for more than ten minutes. Start again from the dashboard.',
+        false
+      )
     )
   }
 

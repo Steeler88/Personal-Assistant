@@ -44,6 +44,41 @@ export function decrypt(blob) {
   return Buffer.concat([decipher.update(Buffer.from(dataB, 'base64url')), decipher.final()]).toString('utf8')
 }
 
+/**
+ * OAuth state, signed rather than stored.
+ *
+ * A cookie is the usual place to keep this, but the callback arrives as a
+ * cross-site redirect onto a host behind Vercel's SSO wall — the cookie can be
+ * dropped by SameSite rules or lost across an auth redirect. Signing a
+ * timestamp with the server secret proves we minted it, needs no cookie and no
+ * table, and still expires.
+ */
+const STATE_TTL_MS = 10 * 60 * 1000
+
+function stateSig(ts) {
+  return crypto.createHmac('sha256', keyBytes()).update(ts).digest('base64url').slice(0, 32)
+}
+
+export function mintState() {
+  const ts = Date.now().toString(36)
+  return `${ts}.${stateSig(ts)}`
+}
+
+export function verifyState(state) {
+  if (typeof state !== 'string') return false
+  const [ts, sig] = state.split('.')
+  if (!ts || !sig) return false
+
+  const expected = stateSig(ts)
+  const a = Buffer.from(sig)
+  const b = Buffer.from(expected)
+  // Compare in constant time, and only when lengths match — timingSafeEqual throws otherwise
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return false
+
+  const age = Date.now() - parseInt(ts, 36)
+  return age >= 0 && age < STATE_TTL_MS
+}
+
 /* ---------- Supabase helpers (service-free: same anon key as elsewhere) ---- */
 
 function supabase() {
