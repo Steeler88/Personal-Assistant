@@ -33,6 +33,9 @@ export default function Whoop() {
   const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState(null)
   const [notice, setNotice] = useState(null)
+  // Strain needs read:cycles, which connections made before strain existed
+  // never granted. Reconnecting is the only way to add it.
+  const [strainBlocked, setStrainBlocked] = useState(false)
 
   async function loadStored() {
     const [s, r, c] = await Promise.all([
@@ -81,10 +84,10 @@ export default function Whoop() {
         else if (body.error === 'reconnect') setNotice('The Whoop connection expired. Connect again.')
         else setError(body.error || `Sync failed (${res.status})`)
       } else {
-        setNotice(
-          `Synced ${body.sleep} nights, ${body.recovery} recovery scores` +
-          `${body.cycles ? ` and ${body.cycles} days of strain` : ''}.`
-        )
+        const parts = [`${body.sleep} nights`, `${body.recovery} recovery scores`]
+        if (body.cycles) parts.push(`${body.cycles} days of strain`)
+        setNotice(`Synced ${parts.join(', ')}.`)
+        setStrainBlocked(body.cycle_error === 'reconnect-for-strain')
         await loadStored()
       }
     } catch (err) {
@@ -116,6 +119,13 @@ export default function Whoop() {
     <Card>
       {error && <p style={{ color: 'var(--red)', fontSize: 'var(--text-sm)', marginTop: 0 }}>{error}</p>}
       {notice && <p className="pa-brief__notice">{notice}</p>}
+      {strainBlocked && (
+        <p className="pa-brief__notice">
+          Strain needs a Whoop permission your connection predates. Reconnecting adds it
+          — sleep and recovery keep working either way.{' '}
+          <a className="pa-brief__link" href="/api/whoop/authorize">Reconnect Whoop</a>
+        </p>
+      )}
 
       {loading ? (
         <p className="pa-empty">Loading…</p>

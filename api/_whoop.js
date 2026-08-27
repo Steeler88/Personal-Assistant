@@ -14,7 +14,10 @@ export const WHOOP_API = 'https://api.prod.whoop.com/developer'
 
 // `offline` is what makes Whoop issue a refresh token. Without it the
 // connection dies in about an hour and has to be re-authorised by hand.
-export const WHOOP_SCOPES = ['read:sleep', 'read:recovery', 'read:profile', 'offline']
+// read:cycles is what /v2/cycle (day strain) needs. A token issued before it
+// was added here still works for sleep and recovery but 401s on cycles, so
+// granting it requires reconnecting — see the reconnect note in status.js.
+export const WHOOP_SCOPES = ['read:sleep', 'read:recovery', 'read:cycles', 'read:profile', 'offline']
 
 const ALG = 'aes-256-gcm'
 

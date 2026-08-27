@@ -59,10 +59,17 @@ export default async function handler(req, res) {
     const start = new Date(Date.now() - DAYS * 86400000).toISOString()
     const query = `?start=${encodeURIComponent(start)}&limit=25`
 
+    // Cycles need a scope (read:cycles) that tokens issued before strain existed
+    // were never granted. Sleep and recovery must not stop working because of
+    // it, so a failure here degrades to "no strain" rather than failing the sync.
+    let cycleError = null
     const [sleepRes, recoveryRes, cycleRes] = await Promise.all([
       whoopGet(`/v2/activity/sleep${query}`, token),
       whoopGet(`/v2/recovery${query}`, token),
-      whoopGet(`/v2/cycle${query}`, token),
+      whoopGet(`/v2/cycle${query}`, token).catch((err) => {
+        cycleError = /401/.test(String(err?.message ?? err)) ? 'reconnect-for-strain' : String(err?.message ?? err)
+        return { records: [] }
+      }),
     ])
 
     const sleepRows = (sleepRes.records ?? [])
@@ -127,6 +134,7 @@ export default async function handler(req, res) {
       sleep: sleepCount,
       recovery: recoveryCount,
       cycles: cycleCount,
+      cycle_error: cycleError,
       since: dateOf(start),
     })
   } catch (err) {
