@@ -216,7 +216,7 @@ export default function Whoop() {
             <Button variant={fresh.tone === 'ok' ? 'ghost' : 'primary'} onClick={sync} disabled={syncing}>
               {syncing ? 'Syncing…' : 'Sync Whoop'}
             </Button>
-            <span className={`pa-chip pa-chip--${fresh.tone}`}>{fresh.label}</span>
+            <span className={`pa-chip${fresh.tone === 'ok' ? '' : ` pa-chip--${fresh.tone}`}`}>{fresh.label}</span>
             <Badge tone="accent" dot>connected</Badge>
           </div>
         </>

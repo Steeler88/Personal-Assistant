@@ -7,8 +7,9 @@ import { supabase } from '../lib/supabase'
 import { loadHome } from '../lib/home'
 import { go } from '../lib/router'
 import { prettyDate, prettyTime, timeOfDay } from '../lib/dates'
-import { MEALS, mealForNow, sortMeals, mealTotals, estimateMacros, mealSummary } from '../lib/meals'
+import { MEALS, mealForNow, sortMeals, mealTotals, estimateMacros, mealItems, itemLine } from '../lib/meals'
 import { recoveryTone, freshness, sleepTone, sleepPct } from '../lib/whoop'
+import { thirds, invertedThirds } from '../lib/bands'
 import { Check } from '../components/controls'
 import Spark from '../components/Spark'
 
@@ -22,14 +23,12 @@ function hhmm(mins) {
   return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`
 }
 
-/* Colour carries state in this design, so a 1-10 score has to be read, not just
-   measured. Soreness runs the other way — a 2 is a good morning, not a bad one. */
-const scoreTone = (v) =>
-  v === null || v === undefined ? 'idle' : v >= 7 ? 'ok' : v >= 4 ? 'warn' : 'bad'
-const inverseTone = (v) =>
-  v === null || v === undefined ? 'idle' : v <= 3 ? 'ok' : v <= 6 ? 'warn' : 'bad'
+/* Journal ratings are scores out of 10, so they band in thirds. Soreness runs
+   the other way — a 2 is a good morning, not a bad one. */
+const scoreTone = (v) => thirds(v, 10)
+const inverseTone = (v) => invertedThirds(v, 10)
 
-function Panel({ name, meta, to, state = 'idle', wide, children }) {
+function Panel({ name, icon, meta, to, state = 'idle', wide, children }) {
   const cls = [
     'pa-panel',
     state !== 'idle' ? `pa-panel--${state}` : '',
@@ -39,7 +38,10 @@ function Panel({ name, meta, to, state = 'idle', wide, children }) {
   return (
     <section className={cls}>
       <header className="pa-panel__head">
-        <span className="pa-panel__name">{name}</span>
+        <span className="pa-panel__name">
+          {icon && <span className="pa-emoji" aria-hidden="true">{icon}</span>}
+          {name}
+        </span>
         {to ? (
           <button type="button" className="pa-panel__link" onClick={() => go(to)}>
             {meta ? `${meta} ` : ''}{'›'}
@@ -53,15 +55,18 @@ function Panel({ name, meta, to, state = 'idle', wide, children }) {
   )
 }
 
-function Stat({ k, v, tone, bar }) {
+function Stat({ k, icon, v, tone, bar }) {
   return (
     <div className="pa-stat">
-      <span className="pa-stat__k">{k}</span>
+      <span className="pa-stat__k">
+        {icon && <span className="pa-emoji" aria-hidden="true">{icon}</span>}
+        {k}
+      </span>
       <span className={`pa-stat__v${tone ? ` pa-stat__v--${tone}` : ''}`}>{v}</span>
       {bar !== null && bar !== undefined && (
         <span className="pa-stat__bar">
           <i
-            className={tone === 'warn' ? 'is-warn' : tone === 'bad' ? 'is-bad' : ''}
+            className={tone === 'warn' ? 'is-warn' : tone === 'bad' ? 'is-bad' : tone === 'idle' ? 'is-idle' : ''}
             style={{ width: `${Math.max(0, Math.min(100, Number(bar)))}%` }}
           />
         </span>
@@ -74,12 +79,12 @@ function Stat({ k, v, tone, bar }) {
    view writes each one out by hand — they differ too much to generate — so this
    list exists only for the waiting state. Add a panel there, add it here. */
 const PANELS = [
-  { name: 'Schedule', to: 'calendar' },
-  { name: 'Tasks', to: 'todos' },
-  { name: 'Recovery', to: 'whoop' },
-  { name: 'Nutrition', to: 'nutrition' },
-  { name: 'Journal', to: 'journal' },
-  { name: 'Market', to: 'market', wide: true },
+  { name: 'Schedule', to: 'calendar', icon: '📅' },
+  { name: 'Tasks', to: 'todos', icon: '✅' },
+  { name: 'Recovery', to: 'whoop', icon: '😴' },
+  { name: 'Nutrition', to: 'nutrition', icon: '🥩' },
+  { name: 'Journal', to: 'journal', icon: '📓' },
+  { name: 'Market', to: 'market', icon: '📈', wide: true },
 ]
 
 /* An instrument whose panel disappears while it reads is a broken instrument.
@@ -98,7 +103,7 @@ function Waiting() {
       </div>
       <div className="pa-home">
         {PANELS.map((p) => (
-          <Panel key={p.name} name={p.name} to={p.to} wide={p.wide}>
+          <Panel key={p.name} name={p.name} icon={p.icon} to={p.to} wide={p.wide}>
             <p className="pa-mini__note pa-mini__note--dim">reading…</p>
           </Panel>
         ))}
@@ -246,7 +251,7 @@ export default function Home() {
       <div className="pa-readout">
         <div className="pa-readout__cell">
           <span className="pa-readout__k">Journal</span>
-          <span className={`pa-readout__v${morningLogged || nightLogged ? ' pa-readout__v--ok' : ' pa-readout__v--idle'}`}>
+          <span className={`pa-readout__v${morningLogged || nightLogged ? '' : ' pa-readout__v--idle'}`}>
             {journalText}
           </span>
           <span className="pa-readout__s">
@@ -272,7 +277,7 @@ export default function Home() {
           </span>
         </div>
 
-        <div className="pa-readout__cell">
+        <div className={`pa-readout__cell${next ? ' pa-readout__cell--attn' : ''}`}>
           <span className="pa-readout__k">Next up</span>
           <span className={`pa-readout__v${next ? '' : ' pa-readout__v--idle'}`}>
             {next ? next.title : 'Nothing scheduled'}
@@ -287,7 +292,7 @@ export default function Home() {
 
       <div className="pa-home">
         {/* ---------------- Schedule ---------------- */}
-        <Panel name="Schedule" to="calendar" meta={prettyDate(today)}>
+        <Panel name="Schedule" icon="📅" to="calendar" meta={prettyDate(today)}>
           {missing.calendar ? (
             <Setup file="SCHEMA-calendar.sql" />
           ) : schedule.today.length === 0 && schedule.upcoming.length === 0 ? (
@@ -312,9 +317,10 @@ export default function Home() {
         {/* ---------------- Tasks ---------------- */}
         <Panel
           name="Tasks"
+          icon="✅"
           to="todos"
           meta={`${open.length} open`}
-          state={overdue ? 'bad' : open.length ? 'warn' : 'ok'}
+          state={overdue ? 'attn' : 'idle'}
         >
           {missing.todos ? (
             <Setup file="SCHEMA-todos.sql" />
@@ -326,10 +332,13 @@ export default function Home() {
                 <li key={t.id} className="pa-mini__row pa-mini__row--task">
                   <Check checked={!!t.done} onChange={(v) => toggleTask(t, v)} label={`Mark "${t.task}" done`} />
                   <span className="pa-mini__task" onClick={() => toggleTask(t, true)}>{t.task}</span>
-                  {t.due_date && (
-                    <span className={`pa-mini__tag${t.due_date < today ? ' pa-mini__tag--overdue' : ''}`}>
-                      {t.due_date < today ? 'overdue' : prettyDate(t.due_date)}
+                  {t.due_date && t.due_date < today && (
+                    <span className="pa-fill pa-fill--attn">
+                      <span className="pa-emoji" aria-hidden="true">⚠️</span>overdue
                     </span>
+                  )}
+                  {t.due_date && t.due_date >= today && (
+                    <span className="pa-mini__tag">{prettyDate(t.due_date)}</span>
                   )}
                 </li>
               ))}
@@ -355,11 +364,12 @@ export default function Home() {
         {/* ---------------- Recovery ---------------- */}
         <Panel
           name="Recovery"
+          icon="😴"
           to="whoop"
           meta={fresh.label}
           /* Stale data makes the recovery number stale too, so lateness outranks
              it: an 89% from four days ago should not read as a green morning. */
-          state={fresh.tone === 'ok' ? recTone : fresh.tone}
+          state={fresh.tone === 'ok' ? recTone : 'attn'}
         >
           {missing.whoop ? (
             <Setup file="SCHEMA-whoop.sql" />
@@ -392,6 +402,7 @@ export default function Home() {
               {latestStrain?.strain !== null && latestStrain?.strain !== undefined && (
                 <Stat
                   k="Strain"
+                  icon="🔥"
                   v={Number(latestStrain.strain).toFixed(1)}
                   tone="idle"
                   bar={(Number(latestStrain.strain) / 21) * 100}
@@ -404,7 +415,9 @@ export default function Home() {
                 </>
               )}
               {fresh.tone !== 'ok' && (
-                <p className="pa-mini__note pa-mini__note--dim">Sync on the recovery screen to catch up.</p>
+                <span className="pa-fill pa-fill--attn" style={{ alignSelf: 'flex-start', marginTop: 'var(--space-2)' }}>
+                  <span className="pa-emoji" aria-hidden="true">🔄</span>sync needed
+                </span>
               )}
             </>
           )}
@@ -413,9 +426,9 @@ export default function Home() {
         {/* ---------------- Nutrition ---------------- */}
         <Panel
           name="Nutrition"
+          icon="🥩"
           to="nutrition"
           meta={nutrition.meals.length ? `${nutrition.meals.length} logged` : null}
-          state={nutrition.meals.length ? 'ok' : 'idle'}
         >
           {missing.nutrition ? (
             <Setup file="SCHEMA-nutrition.sql" />
@@ -449,9 +462,20 @@ export default function Home() {
               {nutrition.meals.length > 0 && (
                 <ul className="pa-mini">
                   {nutrition.meals.map((m) => (
-                    <li key={m.id} className="pa-mini__row">
+                    <li key={m.id} className="pa-mini__row pa-mini__row--stack">
                       <span className="pa-mini__when">{m.meal}</span>
-                      <span className="pa-mini__title" title={m.description}>{mealSummary(m)}</span>
+                      {mealItems(m) ? (
+                        <ul className="pa-items pa-items--tight" title={m.description}>
+                          {mealItems(m).map((i, n) => (
+                            <li key={n}>
+                              {i.emoji && <span className="pa-emoji" aria-hidden="true">{i.emoji} </span>}
+                              {itemLine(i)}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <span className="pa-mini__title" title={m.description}>{m.description}</span>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -486,9 +510,9 @@ export default function Home() {
         {/* ---------------- Journal ---------------- */}
         <Panel
           name="Journal"
+          icon="📓"
           to="journal"
           meta={timeOfDay()}
-          state={morningLogged || nightLogged ? 'ok' : 'idle'}
         >
           {missing.journal ? (
             <Setup file="SCHEMA-journal.sql" />
@@ -497,18 +521,20 @@ export default function Home() {
               <Stat
                 k="Morning"
                 v={morningLogged ? 'Logged' : 'Open'}
-                tone={morningLogged ? 'ok' : 'idle'}
+                tone="idle"
               />
               {morningLogged && (
                 <>
                   <Stat
                     k="Sleep quality"
+                    icon="😴"
                     v={`${journal.morning.sleep_quality ?? '—'} / 10`}
                     tone={scoreTone(journal.morning.sleep_quality)}
                     bar={(journal.morning.sleep_quality ?? 0) * 10}
                   />
                   <Stat
                     k="Soreness"
+                    icon="💪"
                     v={`${journal.morning.soreness ?? '—'} / 10`}
                     tone={inverseTone(journal.morning.soreness)}
                     bar={(journal.morning.soreness ?? 0) * 10}
@@ -518,11 +544,12 @@ export default function Home() {
               <Stat
                 k="Night"
                 v={nightLogged ? 'Logged' : 'Open'}
-                tone={nightLogged ? 'ok' : 'idle'}
+                tone="idle"
               />
               {nightLogged && (
                 <Stat
                   k="Productivity"
+                  icon="⚡"
                   v={`${journal.night.productivity ?? '—'} / 10`}
                   tone={scoreTone(journal.night.productivity)}
                   bar={(journal.night.productivity ?? 0) * 10}
@@ -545,6 +572,7 @@ export default function Home() {
         {/* ---------------- Market ---------------- */}
         <Panel
           name="Market"
+          icon="📈"
           to="market"
           meta={briefing ? prettyDate(briefing.briefing_date) : null}
           wide

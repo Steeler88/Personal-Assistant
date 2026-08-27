@@ -71,6 +71,7 @@ export default function App() {
                 aria-current={route === s.id ? 'page' : undefined}
                 onClick={() => go(s.id)}
               >
+                <span className="pa-emoji" aria-hidden="true">{s.icon}</span>
                 {s.label}
               </button>
             ))}
@@ -81,7 +82,9 @@ export default function App() {
       <main className="pa-main">
         {route !== 'home' && (
           <div className="pa-page__head">
-            <h1 className="pa-page__title">{section.title}</h1>
+            <h1 className="pa-page__title">
+              <span className="pa-emoji" aria-hidden="true">{section.icon}</span> {section.title}
+            </h1>
             <span className="pa-page__meta">{META[route]?.()}</span>
           </div>
         )}

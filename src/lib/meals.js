@@ -38,15 +38,17 @@ export function mealTotals(rows) {
 }
 
 /**
- * "Bacon - 3.5x, Eggs - 4x, Beef - 1lb" — Johnny's format, hyphen and comma,
- * not the middot used elsewhere in the app. Falls back to what you typed, both
- * for meals logged before the estimator returned items and for any estimate
- * that came back without them.
+ * The foods to list, one per line, or null when there are none — meals logged
+ * before the estimator returned items, and estimates that came back without
+ * them, fall back to the sentence you typed.
  */
-export function mealSummary(row) {
-  if (!Array.isArray(row?.items) || row.items.length === 0) return row?.description ?? ''
-  return row.items.map((i) => `${i.food} - ${i.amount}`).join(', ')
+export function mealItems(row) {
+  return Array.isArray(row?.items) && row.items.length ? row.items : null
 }
+
+/** One line of a listed meal: "Bacon - 3.5x". The mark is rendered separately
+ *  so it can be styled as one, and so older items without one still read. */
+export const itemLine = (i) => `${i.food} - ${i.amount}`
 
 /** Guess the meal from the clock, so a quick log is one field instead of two. */
 export function mealForNow(d = new Date()) {

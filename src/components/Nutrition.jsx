@@ -4,7 +4,7 @@ import { todayKey } from '../lib/today'
 import { addDays, longDateOf, prettyDate } from '../lib/dates'
 import { Card, Button, Input } from '../design-kit'
 import { Choice } from './controls'
-import { MEALS, sortMeals, mealTotals, estimateMacros, mealSummary } from '../lib/meals'
+import { MEALS, sortMeals, mealTotals, estimateMacros, mealItems, itemLine } from '../lib/meals'
 import { TARGETS, dayTone, pctOf } from '../lib/targets'
 
 const MISSING_TABLE = new Set(['PGRST205', '42P01'])
@@ -246,18 +246,26 @@ export default function Nutrition({ onChange }) {
                     </span>
                   ) : (
                     <span className="pa-meal__body">
-                      {/* The items read at a glance; the sentence you typed is
-                          still there on hover, and in full when you edit. */}
-                      <span className="pa-meal__desc" title={r.description}>{mealSummary(r)}</span>
+                      {/* One food per line. The sentence you typed is still
+                          there on hover, and in full when you edit. */}
+                      {mealItems(r) ? (
+                        <ul className="pa-items" title={r.description}>
+                          {mealItems(r).map((i, n) => (
+                            <li key={n}>
+                              {i.emoji && <span className="pa-emoji" aria-hidden="true">{i.emoji} </span>}
+                              {itemLine(i)}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <span className="pa-meal__desc" title={r.description}>{r.description}</span>
+                      )}
                       {estimatingId === r.id ? (
                         <span className="pa-meal__macros">Estimating…</span>
                       ) : r.estimated_at ? (
-                        <>
-                          <span className="pa-meal__macros">
-                            {num(r.calories)} kcal · {num(r.protein_g)}p · {num(r.fat_g)}f · {num(r.carbs_g)}c
-                          </span>
-                          {r.estimate_note && <span className="pa-meal__note">{r.estimate_note}</span>}
-                        </>
+                        <span className="pa-meal__macros">
+                          {num(r.calories)} kcal · {num(r.protein_g)}p · {num(r.fat_g)}f · {num(r.carbs_g)}c
+                        </span>
                       ) : (
                         <button type="button" className="pa-brief__link" onClick={() => estimate(r)}>
                           Estimate macros

@@ -5,13 +5,13 @@
 import { useEffect, useState } from 'react'
 
 export const SECTIONS = [
-  { id: 'home', label: 'Home', title: 'Today' },
-  { id: 'journal', label: 'Journal', title: 'Journal' },
-  { id: 'calendar', label: 'Calendar', title: 'Calendar' },
-  { id: 'todos', label: 'Tasks', title: 'Tasks' },
-  { id: 'nutrition', label: 'Nutrition', title: 'Nutrition' },
-  { id: 'whoop', label: 'Recovery', title: 'Recovery' },
-  { id: 'market', label: 'Market', title: 'Market' },
+  { id: 'home', label: 'Home', title: 'Today', icon: '🏠' },
+  { id: 'journal', label: 'Journal', title: 'Journal', icon: '📓' },
+  { id: 'calendar', label: 'Calendar', title: 'Calendar', icon: '📅' },
+  { id: 'todos', label: 'Tasks', title: 'Tasks', icon: '✅' },
+  { id: 'nutrition', label: 'Nutrition', title: 'Nutrition', icon: '🥩' },
+  { id: 'whoop', label: 'Recovery', title: 'Recovery', icon: '😴' },
+  { id: 'market', label: 'Market', title: 'Market', icon: '📈' },
 ]
 
 const IDS = new Set(SECTIONS.map((s) => s.id))

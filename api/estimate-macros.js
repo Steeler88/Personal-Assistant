@@ -26,6 +26,10 @@ estimates, not measurements — do not present them as precise.
 
 Also break the meal into its parts, so it can be read at a glance instead of
 re-read as a sentence. One entry per distinct food, in the order described.
+Give each food one emoji, the most recognisable match — 🥓 bacon, 🥚 eggs,
+🥩 beef and steak, 🍗 chicken, 🧈 butter, 🧀 cheese, 🥛 milk, 🐟 fish. Fall
+back to 🍽 when nothing fits; never leave it blank.
+
 Name foods in the fewest words that stay unambiguous — "Bacon", "Eggs",
 "Ground beef", "Butter". Amounts are compact: a bare count as "4x" or "3.5x",
 a weight or volume in its own unit as "1lb", "8oz", "1 tbsp".
@@ -48,10 +52,11 @@ export const SCHEMA = {
       items: {
         type: 'object',
         properties: {
+          emoji: { type: 'string', description: 'One emoji for the food, e.g. 🥓 🥚 🥩 🧈 🧀' },
           food: { type: 'string', description: 'Short name, capitalised: "Bacon", "Ground beef"' },
-          amount: { type: 'string', description: 'Compact quantity: "4x", "3.5x", "1lb", "1 tbsp", or "some"' },
+          amount: { type: 'string', description: 'Compact quantity: "4x", "3.5x", "1lb", "1 tbsp"' },
         },
-        required: ['food', 'amount'],
+        required: ['emoji', 'food', 'amount'],
         additionalProperties: false,
       },
     },
