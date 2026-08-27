@@ -18,6 +18,9 @@ const SYMBOLS = ['VOO.US', 'QQQ.US', 'PLTR.US', 'NVDA.US', 'AMZN.US', 'TSLA.US',
 const NEWS_FETCH = 40
 const NEWS_LIMIT = 5
 
+// Headlines don't turn over minute to minute; refetch at most this often.
+const NEWS_MAX_AGE_MS = 3 * 60 * 60 * 1000
+
 // Enough bars for a 200-day moving average plus slack for holidays.
 const HISTORY_DAYS = 400
 
@@ -61,81 +64,105 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Supabase env vars are not configured.' })
   }
 
+  const clientDate = req.body && typeof req.body === 'object' ? req.body.date : undefined
+  const row_date = isDateKey(clientDate) ? clientDate : serverDate()
+
   try {
     const since = new Date(Date.now() - HISTORY_DAYS * 86400000).toISOString().slice(0, 10)
     const force = !!(req.body && typeof req.body === 'object' && req.body.force)
+    const today = row_date
 
     const eodUrl = (sym) =>
       `https://eodhd.com/api/eod/${sym}?api_token=${key}&fmt=json&period=d&from=${since}`
 
-    // Probe one symbol first. This plan is EOD-only, so between market closes a
-    // refresh returns exactly what we already stored — previously that cost a
-    // full briefing's worth of calls to discover. One call settles it.
-    if (!force) {
-      const probeRes = await fetch(eodUrl(SYMBOLS[0]))
-      if (probeRes.ok) {
-        const probeBars = await probeRes.json()
-        const latest = Array.isArray(probeBars) && probeBars.length
-          ? probeBars[probeBars.length - 1].date
-          : null
+    // What we already have, so a refresh can reuse the parts that cannot move.
+    const prevRes = await fetch(
+      `${supabaseUrl}/rest/v1/market_briefings?select=*&order=briefing_date.desc&limit=1`,
+      { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } }
+    )
+    const prevRows = prevRes.ok ? await prevRes.json() : []
+    const prev = Array.isArray(prevRows) ? prevRows[0] : null
 
-        const prevRes = await fetch(
-          `${supabaseUrl}/rest/v1/market_briefings?select=*&order=briefing_date.desc&limit=1`,
-          { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } }
-        )
-        const prevRows = prevRes.ok ? await prevRes.json() : []
-        const prev = Array.isArray(prevRows) ? prevRows[0] : null
-        const storedAsOf = prev?.quotes?.[0]?.as_of ?? null
+    // Live quotes are the point of the button, so always fetch them. They also
+    // carry previousClose, which gives today's move without any EOD call.
+    const [liveFirst, ...liveRest] = SYMBOLS
+    const liveRes = await fetch(
+      `https://eodhd.com/api/real-time/${liveFirst}?s=${liveRest.join(',')}&api_token=${key}&fmt=json`
+    )
 
-        if (latest && storedAsOf && latest <= storedAsOf) {
-          return res.status(200).json({
-            ...prev,
-            unchanged: true,
-            latest_close: storedAsOf,
-            message: `No new market close since ${storedAsOf}. US markets close at 4:00 PM ET; EOD data lands a few hours later.`,
-          })
-        }
+    if (!liveRes.ok) {
+      const body = await liveRes.text()
+      const looksRateLimited = liveRes.status === 429 || /limit|quota|exceed/i.test(body)
+      return res.status(502).json({
+        error: looksRateLimited
+          ? 'EODHD limit reached — the daily allowance and the extra buffer are both used up.'
+          : `EODHD live quotes failed (${liveRes.status})`,
+        detail: body.slice(0, 200),
+      })
+    }
+
+    const liveRaw = await liveRes.json()
+    const liveRows = Array.isArray(liveRaw) ? liveRaw : [liveRaw]
+    const live = {}
+    for (const r of liveRows) {
+      if (!r || !r.code || typeof r.close !== 'number') continue
+      live[String(r.code).replace('.US', '')] = {
+        price: r.close,
+        previous_close: typeof r.previousClose === 'number' ? r.previousClose : null,
+        change: typeof r.change === 'number' ? r.change : null,
+        change_p: typeof r.change_p === 'number' ? r.change_p : null,
+        timestamp: r.timestamp ?? null,
       }
     }
 
-    // EOD history rather than real-time: on the free plan the real-time endpoint
-    // returns the same closing figures, but a history call also yields the
-    // multi-period performance, sparkline and indicators for the same quota.
-    const [histResults, newsRes] = await Promise.all([
-      Promise.all(
+    // History only shifts after a close, so pull it once a day rather than on
+    // every refresh. That keeps an intraday refresh to one call per symbol.
+    const contextIsFresh = !force && prev?.eod_fetched_on === today && Array.isArray(prev?.quotes)
+    let context = contextIsFresh ? prev.quotes : null
+    let failures = []
+    let eodFetchedOn = contextIsFresh ? prev.eod_fetched_on : today
+
+    if (!context) {
+      const histResults = await Promise.all(
         SYMBOLS.map((sym) =>
           fetch(eodUrl(sym))
             .then(async (r) => ({ sym, ok: r.ok, status: r.status, body: r.ok ? await r.json() : await r.text() }))
             .catch((e) => ({ sym, ok: false, status: 0, body: String(e?.message ?? e) }))
         )
-      ),
-      fetch(`https://eodhd.com/api/news?api_token=${key}&limit=${NEWS_FETCH}&fmt=json`),
-    ])
+      )
+      failures = histResults.filter((r) => !r.ok)
+      context = histResults
+        .filter((r) => r.ok && Array.isArray(r.body))
+        .map((r) => summarise(r.sym, r.body))
+        .filter(Boolean)
+    }
 
-    const failures = histResults.filter((r) => !r.ok)
-    const quotes = histResults
-      .filter((r) => r.ok && Array.isArray(r.body))
-      .map((r) => summarise(r.sym, r.body))
-      .filter(Boolean)
+    // Merge the live figure onto each symbol's context. Prefer live for today's
+    // move; fall back to the EOD comparison outside market hours.
+    const quotes = (context ?? []).map((q) => {
+      const l = live[q.symbol]
+      if (!l) return { ...q, live: null }
+      return {
+        ...q,
+        live: l,
+        change_p: l.change_p ?? q.change_p,
+        change: l.change ?? q.change,
+      }
+    })
 
     if (quotes.length === 0) {
       const detail = failures.map((f) => `${f.sym}: ${String(f.body).slice(0, 80)}`).join(' | ')
-      // 20 calls a day with a ~6-call briefing makes exhaustion routine, and the
-      // 500-call buffer absorbs overflow until it too runs out. Say which it is.
-      const looksRateLimited = failures.some(
-        (f) => f.status === 429 || /limit|quota|exceed/i.test(String(f.body))
-      )
-      return res.status(502).json({
-        error: looksRateLimited
-          ? 'EODHD limit reached — the daily 20 and the extra buffer are both used up.'
-          : 'EODHD returned no usable history.',
-        detail,
-      })
+      return res.status(502).json({ error: 'EODHD returned no usable data.', detail })
     }
 
     // News is a nice-to-have; a failure here shouldn't lose the quotes.
-    let headlines = []
-    if (newsRes.ok) {
+    let headlines = Array.isArray(prev?.headlines) ? prev.headlines : []
+    const newsAgeMs = prev?.generated_at ? Date.now() - new Date(prev.generated_at).getTime() : Infinity
+    const newsIsStale = force || headlines.length === 0 || newsAgeMs > NEWS_MAX_AGE_MS
+    const newsRes = newsIsStale
+      ? await fetch(`https://eodhd.com/api/news?api_token=${key}&limit=${NEWS_FETCH}&fmt=json`)
+      : null
+    if (newsRes?.ok) {
       const news = await newsRes.json()
       if (Array.isArray(news)) {
         // Decode first: entity-escaped titles would compare as different strings
@@ -150,12 +177,12 @@ export default async function handler(req, res) {
 
     // Trust the client's local date when it sends a valid one; otherwise fall
     // back to the server's, which is UTC on Vercel.
-    const clientDate = req.body && typeof req.body === 'object' ? req.body.date : undefined
     const row = {
-      briefing_date: isDateKey(clientDate) ? clientDate : serverDate(),
+      briefing_date: row_date,
       generated_at: new Date().toISOString(),
       quotes,
       headlines,
+      eod_fetched_on: eodFetchedOn,
       // Surfaced so a partly-failed briefing is visibly partial, not silently short
       skipped: failures.map((f) => f.sym.replace('.US', '')),
     }

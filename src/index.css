@@ -975,3 +975,16 @@ body {
   cursor: pointer;
 }
 .pa-brief__link:hover { color: var(--accent); }
+
+/* Live-price marker */
+.pa-quote__dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-left: 5px;
+  vertical-align: middle;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 7px var(--accent-glow);
+}
+.pa-perf__v--plain { color: var(--muted-strong); }

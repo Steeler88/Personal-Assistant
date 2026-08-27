@@ -32,6 +32,16 @@ function Spark({ points, up }) {
 }
 const money = (n) => (n === null || n === undefined ? '—' : n.toFixed(2))
 
+/** "2 min ago" for a live tick; the exact clock time once it's older. */
+function ago(ts) {
+  if (!ts) return null
+  const mins = Math.max(0, Math.round((Date.now() - ts * 1000) / 60000))
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins} min ago`
+  const d = new Date(ts * 1000)
+  return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+}
+
 function when(iso) {
   if (!iso) return ''
   const d = new Date(iso)
@@ -126,8 +136,12 @@ export default function MarketBriefing() {
         <>
           <div className="pa-brief__head">
             <span className="pa-brief__stamp">
-              {when(briefing.generated_at)}
-              {briefing.quotes?.[0]?.as_of ? ` · closes ${briefing.quotes[0].as_of}` : ''}
+              {(() => {
+                const tick = briefing.quotes?.find((q) => q.live?.timestamp)?.live?.timestamp
+                return tick
+                  ? `Live · quoted ${ago(tick)}`
+                  : `${when(briefing.generated_at)} · closes ${briefing.quotes?.[0]?.as_of ?? '—'}`
+              })()}
             </span>
             {briefing.insight ? null : <Badge tone="neutral">quotes only</Badge>}
           </div>
@@ -143,7 +157,10 @@ export default function MarketBriefing() {
                   <div className="pa-quote__top">
                     <span className="pa-quote__sym">{q.symbol}</span>
                     <Spark points={q.spark} up={up} />
-                    <span className="pa-quote__price">{money(q.close)}</span>
+                    <span className="pa-quote__price">
+                      {money(q.live?.price ?? q.close)}
+                      {q.live && <span className="pa-quote__dot" title="live price" />}
+                    </span>
                     <span className={`pa-quote__chg${up ? '' : ' pa-quote__chg--down'}`}>
                       {up ? '▲' : '▼'} {pct(q.change_p)}
                     </span>
@@ -151,6 +168,12 @@ export default function MarketBriefing() {
 
                   {(p.w1 !== undefined || q.rsi14 !== null) && (
                     <div className="pa-perf">
+                      {q.live && q.close !== null && q.close !== undefined && (
+                        <span className="pa-perf__cell">
+                          <span className="pa-perf__k">prev</span>
+                          <span className="pa-perf__v pa-perf__v--plain">{money(q.close)}</span>
+                        </span>
+                      )}
                       {[['1W', p.w1], ['1M', p.m1], ['YTD', p.ytd]].map(([label, v]) => (
                         <span className="pa-perf__cell" key={label}>
                           <span className="pa-perf__k">{label}</span>
