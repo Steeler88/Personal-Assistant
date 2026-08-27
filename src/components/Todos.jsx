@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { todayKey } from '../lib/today'
 import { Card, Button, Input, Badge } from '../design-kit'
 import { Choice, Check } from './controls'
+import DatePicker from './DatePicker'
 
 const MISSING_TABLE = new Set(['PGRST205', '42P01'])
 
@@ -133,17 +134,7 @@ export default function Todos() {
           onChange={(e) => setTask(e.target.value)}
         />
 
-        <div className="pa-field" style={{ flex: '0 0 auto' }}>
-          <label className="pa-field__label" htmlFor="todo-due">Due (optional)</label>
-          <input
-            id="todo-due"
-            className="pa-date"
-            type="date"
-            value={due}
-            disabled={loading}
-            onChange={(e) => setDue(e.target.value)}
-          />
-        </div>
+        <DatePicker label="Due (optional)" value={due} onChange={setDue} disabled={loading} />
 
         <div style={{ flex: '0 0 auto' }}>
           <Choice label="Priority (optional)" value={priority} onChange={setPriority} options={PRIORITIES} />

@@ -251,23 +251,6 @@ body {
 }
 .pa-todo__add > *:first-child { flex: 1 1 220px; }
 
-.pa-date {
-  background: var(--card);
-  border: 1px solid var(--border);
-  color: var(--fg);
-  font-family: var(--font-sans);
-  font-size: var(--text-sm);
-  padding: 0.6875rem var(--space-3);
-  border-radius: var(--radius-sm);
-  outline: none;
-  min-height: 38px;
-  transition: border-color var(--duration) var(--ease);
-}
-.pa-date:hover { border-color: var(--border-strong); }
-.pa-date:focus { border-color: var(--accent); }
-/* Dark-theme the native date picker icon, which defaults to a black glyph */
-.pa-date::-webkit-calendar-picker-indicator { filter: invert(1); opacity: 0.5; cursor: pointer; }
-.pa-date::-webkit-calendar-picker-indicator:hover { opacity: 1; }
 
 .pa-empty {
   color: var(--muted);
@@ -275,3 +258,130 @@ body {
   padding: var(--space-6) 0;
   text-align: center;
 }
+
+/* ---------------- Date picker ---------------- */
+
+.pa-datebtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 38px;
+  padding: 0 var(--space-3);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color var(--duration) var(--ease), color var(--duration) var(--ease);
+}
+.pa-datebtn:hover:not(:disabled) { border-color: var(--border-strong); }
+.pa-datebtn:disabled { opacity: 0.5; cursor: not-allowed; }
+.pa-datebtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pa-datebtn[aria-expanded='true'] { border-color: var(--accent); }
+.pa-datebtn--empty { color: var(--muted); }
+.pa-datebtn svg { color: var(--muted); flex-shrink: 0; }
+
+.pa-cal {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 40;
+  width: 252px;
+  padding: var(--space-3);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.75);
+}
+
+.pa-cal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+
+.pa-cal__month {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: var(--text-base);
+  color: var(--fg);
+}
+
+.pa-cal__nav {
+  width: 28px;
+  height: 28px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--muted-strong);
+  font-size: var(--text-lg);
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color var(--duration) var(--ease), color var(--duration) var(--ease);
+}
+.pa-cal__nav:hover { border-color: var(--accent); color: var(--accent); }
+.pa-cal__nav:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.pa-cal__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.pa-cal__dow {
+  display: grid;
+  place-items: center;
+  height: 26px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.pa-cal__day {
+  height: 30px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--muted-strong);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: background var(--duration) var(--ease), color var(--duration) var(--ease);
+}
+.pa-cal__day:hover { background: var(--card-elevated); color: var(--fg); }
+.pa-cal__day:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+/* Today is outlined; the selected day is filled — so both can show at once */
+.pa-cal__day[data-today='true'] { border-color: var(--border-strong); color: var(--fg); }
+.pa-cal__day[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #000;
+  font-weight: 600;
+}
+
+.pa-cal__foot {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.pa-cal__action {
+  flex: 1;
+  min-height: 30px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--muted-strong);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: border-color var(--duration) var(--ease), color var(--duration) var(--ease);
+}
+.pa-cal__action:hover { border-color: var(--accent); color: var(--accent); }
+.pa-cal__action:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
