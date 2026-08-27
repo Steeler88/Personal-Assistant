@@ -63,3 +63,25 @@ export function timeOptions() {
 export function monthBounds(y, m) {
   return { from: toKey(y, m, 1), to: toKey(y, m, daysInMonth(y, m)) }
 }
+
+/** Weekday index (0=Sun) for a 'YYYY-MM-DD' key, in local time. */
+export function weekdayOf(key) {
+  const p = parseKey(key)
+  return new Date(p.y, p.m, p.d).getDay()
+}
+
+/** Every date key from `from` to `to` inclusive. */
+export function eachDay(from, to) {
+  const out = []
+  const a = parseKey(from)
+  const cursor = new Date(a.y, a.m, a.d)
+  while (true) {
+    const key = toKey(cursor.getFullYear(), cursor.getMonth(), cursor.getDate())
+    if (key > to) break
+    out.push(key)
+    cursor.setDate(cursor.getDate() + 1)
+  }
+  return out
+}
+
+export const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']

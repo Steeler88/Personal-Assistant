@@ -3,13 +3,14 @@ import { supabase } from '../lib/supabase'
 import { todayKey } from '../lib/today'
 import {
   toKey, parseKey, daysInMonth, firstWeekday, monthBounds,
-  prettyTime, timeOptions, MONTHS, WEEKDAYS,
+  prettyTime, eachDay, weekdayOf, MONTHS, WEEKDAYS, WEEKDAY_NAMES,
 } from '../lib/dates'
 import { Card, Button, Input, Textarea } from '../design-kit'
 import { Field } from './controls'
+import DatePicker from './DatePicker'
+import TimePicker from './TimePicker'
 
 const MISSING_TABLE = new Set(['PGRST205', '42P01'])
-const TIMES = timeOptions()
 
 // Untimed items (all-day events, then to-dos) sort above timed ones,
 // and timed items sort by clock time.
@@ -23,10 +24,26 @@ function byTime(a, b) {
   return a.time < b.time ? -1 : 1
 }
 
-const asEvent = (e) => ({
-  kind: 'event', id: e.id, date: e.event_date, time: e.start_time,
-  title: e.title, note: e.note, sort: e.created_at, raw: e,
+const asEvent = (e, date = e.event_date) => ({
+  kind: 'event', id: e.id, date, time: e.start_time,
+  title: e.title, note: e.note, sort: e.created_at,
+  repeats: !!e.repeat_weekdays?.length, raw: e,
 })
+
+/** One row + a rule -> the occurrences that fall inside [from, to]. */
+function expand(e, from, to) {
+  if (!e.repeat_weekdays?.length) {
+    return e.event_date >= from && e.event_date <= to ? [asEvent(e)] : []
+  }
+  // Never start before the series does, nor run past its end date
+  const start = e.event_date > from ? e.event_date : from
+  const end = e.repeat_until && e.repeat_until < to ? e.repeat_until : to
+  if (start > end) return []
+  const wanted = new Set(e.repeat_weekdays)
+  return eachDay(start, end)
+    .filter((day) => wanted.has(weekdayOf(day)))
+    .map((day) => asEvent(e, day))
+}
 
 const asTask = (t) => ({
   kind: 'todo', id: t.id, date: t.due_date, time: null,
@@ -48,6 +65,8 @@ export default function Calendar({ onChange, refreshKey = 0 }) {
   const [time, setTime] = useState('')
   const [note, setNote] = useState('')
   const [adding, setAdding] = useState(false)
+  const [repeatDays, setRepeatDays] = useState([])
+  const [repeatUntil, setRepeatUntil] = useState('')
 
   // Refetch whenever the visible month changes
   useEffect(() => {
@@ -59,8 +78,22 @@ export default function Calendar({ onChange, refreshKey = 0 }) {
 
       // Dated to-dos appear on the calendar too. Read them rather than copying
       // them in, so the to-do list stays the single source of truth.
-      const [ev, td] = await Promise.all([
-        supabase.from('calendar_events').select('*').gte('event_date', from).lte('event_date', to),
+      // Two queries, because a series' single row lives on its START date. A
+      // plain range filter drops a class begun in August the moment you look
+      // at September, even though it still runs every week.
+      const [oneOff, series, td] = await Promise.all([
+        supabase
+          .from('calendar_events')
+          .select('*')
+          .is('repeat_weekdays', null)
+          .gte('event_date', from)
+          .lte('event_date', to),
+        supabase
+          .from('calendar_events')
+          .select('*')
+          .not('repeat_weekdays', 'is', null)
+          .lte('event_date', to)
+          .or(`repeat_until.is.null,repeat_until.gte.${from}`),
         supabase
           .from('todos')
           .select('id,task,due_date,priority,done')
@@ -70,11 +103,12 @@ export default function Calendar({ onChange, refreshKey = 0 }) {
       ])
 
       if (cancelled) return
-      if (ev.error) {
-        setError(MISSING_TABLE.has(ev.error.code) ? 'missing-table' : ev.error.message)
+      const evError = oneOff.error || series.error
+      if (evError) {
+        setError(MISSING_TABLE.has(evError.code) ? 'missing-table' : evError.message)
       } else {
         setError(null)
-        setEvents(ev.data)
+        setEvents([...oneOff.data, ...series.data])
         // A missing todos table is a setup state, not a calendar failure
         setTasks(td.error ? [] : td.data)
       }
@@ -107,6 +141,8 @@ export default function Calendar({ onChange, refreshKey = 0 }) {
         start_time: time || null,
         title: text,
         note: note.trim() || null,
+        repeat_weekdays: repeatDays.length ? [...repeatDays].sort((a, b) => a - b) : null,
+        repeat_until: repeatDays.length && repeatUntil ? repeatUntil : null,
       })
       .select()
       .single()
@@ -119,6 +155,8 @@ export default function Calendar({ onChange, refreshKey = 0 }) {
       setTitle('')
       setTime('')
       setNote('')
+      setRepeatDays([])
+      setRepeatUntil('')
     }
     setAdding(false)
   }
@@ -150,7 +188,8 @@ export default function Calendar({ onChange, refreshKey = 0 }) {
   const total = daysInMonth(view.y, view.m)
   const offset = firstWeekday(view.y, view.m)
 
-  const items = [...events.map(asEvent), ...tasks.map(asTask)]
+  const { from: mFrom, to: mTo } = monthBounds(view.y, view.m)
+  const items = [...events.flatMap((e) => expand(e, mFrom, mTo)), ...tasks.map(asTask)]
   const byDay = {}
   for (const it of items) (byDay[it.date] ||= []).push(it)
 
@@ -213,7 +252,7 @@ export default function Calendar({ onChange, refreshKey = 0 }) {
         ) : (
           <ul className="pa-events">
             {dayEvents.map((it) => (
-              <li key={`${it.kind}-${it.id}`} className={`pa-event${it.done ? ' pa-event--done' : ''}`}>
+              <li key={`${it.kind}-${it.id}-${it.date}`} className={`pa-event${it.done ? ' pa-event--done' : ''}`}>
                 <span className={`pa-event__time${it.kind === 'todo' ? ' pa-event__time--task' : ''}`}>
                   {it.kind === 'todo' ? 'Due' : prettyTime(it.time) || 'All day'}
                 </span>
@@ -226,12 +265,18 @@ export default function Calendar({ onChange, refreshKey = 0 }) {
                       {it.raw.priority && !it.done ? ` · ${it.raw.priority}` : ''}
                     </span>
                   )}
+                  {it.kind === 'event' && it.repeats && (
+                    <span className="pa-event__tag">
+                      repeats {it.raw.repeat_weekdays.slice().sort((a, b) => a - b).map((d) => WEEKDAY_NAMES[d]).join(', ')}
+                    </span>
+                  )}
                 </span>
                 {it.kind === 'event' && (
                   <button
                     type="button"
                     className="pa-todo__del"
-                    aria-label={`Delete "${it.title}"`}
+                    aria-label={it.repeats ? `Delete the whole "${it.title}" series` : `Delete "${it.title}"`}
+                    title={it.repeats ? 'Deletes every occurrence in this series' : 'Delete'}
                     onClick={() => remove(it.raw)}
                   >
                     ×
@@ -251,14 +296,39 @@ export default function Calendar({ onChange, refreshKey = 0 }) {
             onChange={(e) => setTitle(e.target.value)}
           />
 
-          <Field label="Time (optional)">
-            <select className="pa-select" value={time} onChange={(e) => setTime(e.target.value)}>
-              <option value="">All day</option>
-              {TIMES.map((t) => (
-                <option key={t.value} value={t.value}>{t.label}</option>
-              ))}
-            </select>
-          </Field>
+          <TimePicker label="Time (optional)" value={time} onChange={setTime} />
+
+          <div style={{ flexBasis: '100%' }}>
+            <Field label="Repeats (optional)">
+              <div className="pa-repeat">
+                {WEEKDAYS.map((w, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    className="pa-repeat__day"
+                    aria-pressed={repeatDays.includes(i)}
+                    aria-label={WEEKDAY_NAMES[i]}
+                    onClick={() =>
+                      setRepeatDays((d) => (d.includes(i) ? d.filter((x) => x !== i) : [...d, i]))
+                    }
+                  >
+                    {w}
+                  </button>
+                ))}
+              </div>
+            </Field>
+          </div>
+
+          {repeatDays.length > 0 && (
+            <>
+              <DatePicker label="Repeat until (optional)" value={repeatUntil} onChange={setRepeatUntil} />
+              <p className="pa-repeat__hint">
+                Every {repeatDays.slice().sort((a, b) => a - b).map((d) => WEEKDAY_NAMES[d]).join(', ')} from{' '}
+                {selectedLabel}
+                {repeatUntil ? ' until the date above' : ' onwards'}
+              </p>
+            </>
+          )}
 
           <div style={{ flexBasis: '100%' }}>
             <Field label="Note (optional)">
