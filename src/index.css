@@ -385,3 +385,168 @@ body {
 }
 .pa-cal__action:hover { border-color: var(--accent); color: var(--accent); }
 .pa-cal__action:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------------- Calendar (month view) ---------------- */
+
+.pa-month__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+}
+
+.pa-month__title {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: var(--text-xl);
+  color: var(--fg);
+}
+
+.pa-month__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+
+.pa-month__dow {
+  display: grid;
+  place-items: center;
+  height: 24px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.pa-month__day {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 46px;
+  padding: var(--space-1);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--muted-strong);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: background var(--duration) var(--ease), color var(--duration) var(--ease);
+}
+.pa-month__day:hover { background: var(--card-elevated); color: var(--fg); }
+.pa-month__day:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+/* Today is outlined, the selected day is filled, so both read at once */
+.pa-month__day[data-today='true'] { border-color: var(--border-strong); color: var(--fg); }
+.pa-month__day[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #000;
+  font-weight: 600;
+}
+
+.pa-month__dots {
+  display: flex;
+  gap: 2px;
+  height: 4px;
+}
+.pa-month__dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.pa-month__day[aria-pressed='true'] .pa-month__dot { background: #000; }
+
+.pa-day {
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--border);
+}
+
+.pa-day__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.pa-day__title {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.pa-day__today {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.pa-events { list-style: none; margin: 0 0 var(--space-4); padding: 0; }
+
+.pa-event {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border);
+}
+.pa-event:last-child { border-bottom: none; }
+
+.pa-event__time {
+  flex: 0 0 72px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--accent);
+  padding-top: 2px;
+}
+
+.pa-event__body { flex: 1; min-width: 0; }
+
+.pa-event__title {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--fg);
+  overflow-wrap: anywhere;
+}
+
+.pa-event__note {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.pa-day__add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: flex-end;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+.pa-day__add > *:first-child { flex: 1 1 200px; }
+
+.pa-select {
+  min-height: 38px;
+  padding: 0 var(--space-3);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  outline: none;
+  transition: border-color var(--duration) var(--ease);
+}
+.pa-select:hover { border-color: var(--border-strong); }
+.pa-select:focus { border-color: var(--accent); }
+.pa-select option { background: var(--bg-elevated); color: var(--fg); }
