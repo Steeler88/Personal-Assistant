@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { Card, Button, Badge } from '../design-kit'
 import { prettyDate } from '../lib/dates'
 import { todayKey } from '../lib/today'
-import { recoveryTone, freshness, sleepTone } from '../lib/whoop'
+import { recoveryTone, freshness, sleepTone, sleepPct } from '../lib/whoop'
 
 const MISSING_TABLE = new Set(['PGRST205', '42P01'])
 
@@ -162,7 +162,7 @@ export default function Whoop() {
                 />
                 <span className="pa-whoop__sub">
                   {latestSleep.sleep_needed_min
-                    ? `Whoop wanted ${hhmm(latestSleep.sleep_needed_min)}`
+                    ? `${sleepPct(latestSleep.total_sleep_min, latestSleep.sleep_needed_min)}% of the ${hhmm(latestSleep.sleep_needed_min)} Whoop wanted`
                     : `${num(latestSleep.performance_pct)}% performance`} · {prettyDate(latestSleep.night_of)}
                 </span>
               </div>
@@ -194,8 +194,8 @@ export default function Whoop() {
                       <span className={`pa-whoop__cell pa-whoop__cell--${sleepTone(s.total_sleep_min, s.sleep_needed_min)}`}>
                         {hhmm(s.total_sleep_min)}
                       </span>
-                      <span className="pa-whoop__cell">
-                        {s.sleep_needed_min ? `of ${hhmm(s.sleep_needed_min)}` : '—'}
+                      <span className={`pa-whoop__cell pa-whoop__cell--${sleepTone(s.total_sleep_min, s.sleep_needed_min)}`}>
+                        {s.sleep_needed_min ? `${sleepPct(s.total_sleep_min, s.sleep_needed_min)}% need` : '—'}
                       </span>
                       <span className="pa-whoop__cell">
                         {strain === undefined || strain === null ? '—' : `${Number(strain).toFixed(1)} str`}

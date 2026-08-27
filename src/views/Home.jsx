@@ -7,8 +7,8 @@ import { supabase } from '../lib/supabase'
 import { loadHome } from '../lib/home'
 import { go } from '../lib/router'
 import { prettyDate, prettyTime, timeOfDay } from '../lib/dates'
-import { MEALS, mealForNow, sortMeals, mealTotals, estimateMacros } from '../lib/meals'
-import { recoveryTone, freshness, sleepTone } from '../lib/whoop'
+import { MEALS, mealForNow, sortMeals, mealTotals, estimateMacros, mealSummary } from '../lib/meals'
+import { recoveryTone, freshness, sleepTone, sleepPct } from '../lib/whoop'
 import { Check } from '../components/controls'
 import Spark from '../components/Spark'
 
@@ -379,7 +379,7 @@ export default function Home() {
                 <Stat
                   k="Slept"
                   v={latestSleep.sleep_needed_min
-                    ? `${hhmm(latestSleep.total_sleep_min)} / ${hhmm(latestSleep.sleep_needed_min)}`
+                    ? `${hhmm(latestSleep.total_sleep_min)} · ${sleepPct(latestSleep.total_sleep_min, latestSleep.sleep_needed_min)}%`
                     : hhmm(latestSleep.total_sleep_min)}
                   tone={sleepTone(latestSleep.total_sleep_min, latestSleep.sleep_needed_min)}
                   bar={latestSleep.sleep_needed_min
@@ -451,7 +451,7 @@ export default function Home() {
                   {nutrition.meals.map((m) => (
                     <li key={m.id} className="pa-mini__row">
                       <span className="pa-mini__when">{m.meal}</span>
-                      <span className="pa-mini__title">{m.description}</span>
+                      <span className="pa-mini__title" title={m.description}>{mealSummary(m)}</span>
                     </li>
                   ))}
                 </ul>

@@ -4,7 +4,7 @@ import { todayKey } from '../lib/today'
 import { addDays, longDateOf, prettyDate } from '../lib/dates'
 import { Card, Button, Input } from '../design-kit'
 import { Choice } from './controls'
-import { MEALS, sortMeals, mealTotals, estimateMacros } from '../lib/meals'
+import { MEALS, sortMeals, mealTotals, estimateMacros, mealSummary } from '../lib/meals'
 import { TARGETS, dayTone, pctOf } from '../lib/targets'
 
 const MISSING_TABLE = new Set(['PGRST205', '42P01'])
@@ -43,6 +43,9 @@ export default function Nutrition({ onChange }) {
   const [loading, setLoading] = useState(true)
   const [adding, setAdding] = useState(false)
   const [estimatingId, setEstimatingId] = useState(null)
+  const [editingId, setEditingId] = useState(null)
+  const [draft, setDraft] = useState({ description: '', meal: null })
+  const [savingEdit, setSavingEdit] = useState(false)
   const [error, setError] = useState(null)
 
   // Anchored to today, not to the day you're looking at. Anchoring it to the
@@ -104,6 +107,38 @@ export default function Nutrition({ onChange }) {
     setAdding(false)
     onChange?.()
     estimate(data)
+  }
+
+  function startEdit(row) {
+    setEditingId(row.id)
+    setDraft({ description: row.description, meal: row.meal })
+  }
+
+  async function saveEdit(row) {
+    const text = draft.description.trim()
+    if (!text) return
+
+    setSavingEdit(true)
+    setError(null)
+    const { error } = await supabase
+      .from('meals').update({ description: text, meal: draft.meal }).eq('id', row.id)
+
+    if (error) {
+      setError(error.message)
+      setSavingEdit(false)
+      return
+    }
+
+    const updated = { ...row, description: text, meal: draft.meal }
+    setRows((list) => list.map((r) => (r.id === row.id ? updated : r)))
+    setEditingId(null)
+    setSavingEdit(false)
+    onChange?.()
+
+    // The stored macros describe the old wording. Re-estimate only when the
+    // wording actually changed — moving a meal from lunch to dinner does not
+    // change what was eaten, and an estimate costs an API call.
+    if (text !== row.description) estimate(updated)
   }
 
   async function remove(row) {
@@ -180,25 +215,63 @@ export default function Nutrition({ onChange }) {
               {dayMeals.map((r) => (
                 <li key={r.id} className="pa-meal">
                   <span className="pa-meal__type">{r.meal}</span>
-                  <span className="pa-meal__body">
-                    <span className="pa-meal__desc">{r.description}</span>
-                    {r.estimated_at ? (
-                      <>
-                        <span className="pa-meal__macros">
-                          {num(r.calories)} kcal · {num(r.protein_g)}p · {num(r.fat_g)}f · {num(r.carbs_g)}c
-                        </span>
-                        {r.estimate_note && <span className="pa-meal__note">{r.estimate_note}</span>}
-                      </>
-                    ) : estimatingId === r.id ? (
-                      <span className="pa-meal__macros">Estimating…</span>
-                    ) : (
-                      <button type="button" className="pa-brief__link" onClick={() => estimate(r)}>
-                        Estimate macros
-                      </button>
-                    )}
+
+                  {editingId === r.id ? (
+                    <span className="pa-meal__body">
+                      <input
+                        className="pa-quick__input"
+                        aria-label="What you ate"
+                        autoFocus
+                        value={draft.description}
+                        onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape') setEditingId(null)
+                          if (e.key === 'Enter') saveEdit(r)
+                        }}
+                      />
+                      <span className="pa-meal__edits">
+                        <select
+                          className="pa-quick__select"
+                          aria-label="Which meal"
+                          value={draft.meal ?? ''}
+                          onChange={(e) => setDraft((d) => ({ ...d, meal: e.target.value }))}
+                        >
+                          {MEALS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+                        </select>
+                        <button type="button" className="pa-quick__btn" disabled={savingEdit || !draft.description.trim()}
+                                onClick={() => saveEdit(r)}>{savingEdit ? '…' : 'Save'}</button>
+                        <button type="button" className="pa-brief__link" onClick={() => setEditingId(null)}>Cancel</button>
+                      </span>
+                      <span className="pa-meal__note">Changing the wording re-estimates the macros</span>
+                    </span>
+                  ) : (
+                    <span className="pa-meal__body">
+                      {/* The items read at a glance; the sentence you typed is
+                          still there on hover, and in full when you edit. */}
+                      <span className="pa-meal__desc" title={r.description}>{mealSummary(r)}</span>
+                      {estimatingId === r.id ? (
+                        <span className="pa-meal__macros">Estimating…</span>
+                      ) : r.estimated_at ? (
+                        <>
+                          <span className="pa-meal__macros">
+                            {num(r.calories)} kcal · {num(r.protein_g)}p · {num(r.fat_g)}f · {num(r.carbs_g)}c
+                          </span>
+                          {r.estimate_note && <span className="pa-meal__note">{r.estimate_note}</span>}
+                        </>
+                      ) : (
+                        <button type="button" className="pa-brief__link" onClick={() => estimate(r)}>
+                          Estimate macros
+                        </button>
+                      )}
+                    </span>
+                  )}
+
+                  <span className="pa-meal__actions">
+                    <button type="button" className="pa-meal__edit" aria-label={`Edit "${r.description}"`}
+                            onClick={() => startEdit(r)}>edit</button>
+                    <button type="button" className="pa-todo__del" aria-label={`Delete "${r.description}"`}
+                            onClick={() => remove(r)}>×</button>
                   </span>
-                  <button type="button" className="pa-todo__del" aria-label={`Delete "${r.description}"`}
-                          onClick={() => remove(r)}>×</button>
                 </li>
               ))}
             </ul>

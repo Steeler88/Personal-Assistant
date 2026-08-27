@@ -42,3 +42,15 @@ export function sleepTone(asleepMin, neededMin) {
   if (ratio >= 0.85) return 'warn'
   return 'bad'
 }
+
+/**
+ * Sleep as a percentage of what Whoop asked for. Over 100 is normal and good —
+ * it means you slept longer than you needed, so this is not clamped.
+ *
+ * This is our own division and will not match the percentage Whoop's app shows,
+ * which comes out of their model. See api/whoop/sync.js.
+ */
+export function sleepPct(asleepMin, neededMin) {
+  if (!asleepMin || !neededMin) return null
+  return Math.round((Number(asleepMin) / Number(neededMin)) * 100)
+}

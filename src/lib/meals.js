@@ -37,6 +37,16 @@ export function mealTotals(rows) {
   return { ...totals, pending: rows.length - estimated.length }
 }
 
+/**
+ * "Bacon 3.5x · Eggs 4x". Falls back to what you typed, both for meals logged
+ * before the estimator returned items and for any estimate that came back
+ * without them.
+ */
+export function mealSummary(row) {
+  if (!Array.isArray(row?.items) || row.items.length === 0) return row?.description ?? ''
+  return row.items.map((i) => `${i.food} ${i.amount}`).join(' · ')
+}
+
 /** Guess the meal from the clock, so a quick log is one field instead of two. */
 export function mealForNow(d = new Date()) {
   const h = d.getHours()
@@ -64,6 +74,7 @@ export async function estimateMacros(row) {
       fat_g: body.fat_g,
       carbs_g: body.carbs_g,
       estimate_note: body.note,
+      items: Array.isArray(body.items) && body.items.length ? body.items : null,
       estimated_at: new Date().toISOString(),
     }
 

@@ -1904,3 +1904,38 @@ body {
   min-width: 62px;
   text-align: right;
 }
+
+/* ---------------- Instrument: meal rows ---------------- */
+
+.pa-meal__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.pa-meal__edit {
+  background: none;
+  border: 0;
+  padding: 2px 4px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--duration) var(--ease), color var(--duration) var(--ease);
+}
+.pa-meal:hover .pa-meal__edit,
+.pa-meal__edit:focus-visible { opacity: 1; }
+.pa-meal__edit:hover { color: var(--accent); }
+.pa-meal__edit:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.pa-meal__edits {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: var(--space-2);
+}

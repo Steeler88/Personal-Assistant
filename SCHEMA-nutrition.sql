@@ -39,3 +39,14 @@ alter table meals enable row level security;
 drop policy if exists "single user full access" on meals;
 create policy "single user full access" on meals
   for all to anon using (true) with check (true);
+
+-- ---------------------------------------------------------------------------
+-- The meal broken into its parts, e.g. [{"food":"Bacon","amount":"3.5x"},
+-- {"food":"Eggs","amount":"4x"}]. Produced by the same estimate that works out
+-- the macros, so it costs no extra call.
+--
+-- `description` stays the source of truth — it is what you actually typed, it
+-- is what gets re-estimated, and it is what shows when a meal predates this
+-- column.
+-- ---------------------------------------------------------------------------
+alter table meals add column if not exists items jsonb;
