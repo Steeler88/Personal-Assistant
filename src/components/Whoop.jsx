@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { Card, Button, Badge } from '../design-kit'
 import { prettyDate } from '../lib/dates'
+import { recoveryTone } from '../lib/whoop'
 
 const MISSING_TABLE = new Set(['PGRST205', '42P01'])
 
@@ -13,7 +14,7 @@ const hhmm = (mins) => {
 }
 
 /** Ring-ish bar: recovery reads better as a proportion than a bare number. */
-function Meter({ value, tone = 'accent' }) {
+function Meter({ value, tone = 'ok' }) {
   const v = Math.max(0, Math.min(100, Number(value ?? 0)))
   return (
     <span className="pa-meter">
@@ -121,10 +122,7 @@ export default function Whoop() {
               <div className="pa-whoop__stat">
                 <span className="pa-whoop__k">Recovery</span>
                 <span className="pa-whoop__v">{num(latestRecovery.recovery_score)}%</span>
-                <Meter
-                  value={latestRecovery.recovery_score}
-                  tone={latestRecovery.recovery_score >= 67 ? 'accent' : latestRecovery.recovery_score >= 34 ? 'amber' : 'red'}
-                />
+                <Meter value={latestRecovery.recovery_score} tone={recoveryTone(latestRecovery.recovery_score)} />
                 <span className="pa-whoop__sub">
                   HRV {num(latestRecovery.hrv_ms)}ms · RHR {num(latestRecovery.rhr_bpm)}bpm
                 </span>
@@ -155,7 +153,7 @@ export default function Whoop() {
                       <span className="pa-whoop__date">{prettyDate(s.night_of)}</span>
                       <span className="pa-whoop__cell">{hhmm(s.total_sleep_min)}</span>
                       <span className="pa-whoop__cell">{num(s.performance_pct)}%</span>
-                      <span className="pa-whoop__cell pa-whoop__cell--rec">
+                      <span className={`pa-whoop__cell pa-whoop__cell--${rec ? recoveryTone(rec.recovery_score) : 'idle'}`}>
                         {rec ? `${num(rec.recovery_score)}% rec` : '—'}
                       </span>
                     </li>

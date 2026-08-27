@@ -8,6 +8,7 @@ import { loadHome } from '../lib/home'
 import { go } from '../lib/router'
 import { prettyDate, prettyTime, timeOfDay } from '../lib/dates'
 import { MEALS, mealForNow, sortMeals, mealTotals, estimateMacros } from '../lib/meals'
+import { recoveryTone } from '../lib/whoop'
 import { Check } from '../components/controls'
 import Spark from '../components/Spark'
 
@@ -20,10 +21,6 @@ function hhmm(mins) {
   const m = Math.round(Number(mins))
   return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`
 }
-
-/** Whoop's own banding: green above 67, yellow above 34, red below. */
-const recoveryTone = (v) =>
-  v === null || v === undefined ? 'idle' : v >= 67 ? 'ok' : v >= 34 ? 'warn' : 'bad'
 
 /* Colour carries state in this design, so a 1-10 score has to be read, not just
    measured. Soreness runs the other way — a 2 is a good morning, not a bad one. */
@@ -265,7 +262,7 @@ export default function Home() {
 
         <div className="pa-readout__cell">
           <span className="pa-readout__k">Recovery</span>
-          <span className={`pa-readout__v pa-readout__v--${recTone === 'idle' ? 'idle' : recTone === 'ok' ? 'ok' : 'warn'}`}>
+          <span className={`pa-readout__v pa-readout__v--${recTone}`}>
             {latestRecovery ? `${num(latestRecovery.recovery_score)}%` : '—'}
           </span>
           <span className="pa-readout__s">

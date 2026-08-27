@@ -900,8 +900,8 @@ body {
 .pa-brief__notice {
   margin: 0 0 var(--space-4);
   padding: var(--space-3);
-  background: rgba(245, 158, 11, 0.08);
-  border: 1px solid rgba(245, 158, 11, 0.28);
+  background: var(--warn-wash);
+  border: 1px solid var(--warn);
   border-radius: var(--radius-sm);
   font-size: var(--text-sm);
   line-height: 1.5;
@@ -1043,9 +1043,10 @@ body {
   overflow: hidden;
 }
 .pa-meter__fill { display: block; height: 100%; border-radius: var(--radius-pill); }
-.pa-meter__fill--accent { background: var(--accent); }
-.pa-meter__fill--amber { background: var(--amber); }
-.pa-meter__fill--red { background: var(--red); }
+.pa-meter__fill--ok { background: var(--ok); }
+.pa-meter__fill--warn { background: var(--warn); }
+.pa-meter__fill--bad { background: var(--bad); }
+.pa-meter__fill--idle { background: var(--border-strong); }
 
 .pa-whoop__list { list-style: none; margin: 0; padding: 0; }
 
@@ -1063,7 +1064,10 @@ body {
 
 .pa-whoop__date { color: var(--muted-strong); }
 .pa-whoop__cell { color: var(--muted); min-width: 52px; text-align: right; }
-.pa-whoop__cell--rec { color: var(--accent); }
+.pa-whoop__cell--ok { color: var(--ok); }
+.pa-whoop__cell--warn { color: var(--warn); }
+.pa-whoop__cell--bad { color: var(--bad); }
+.pa-whoop__cell--idle { color: var(--muted); }
 
 /* ============================================================
    INSTRUMENT
@@ -1083,11 +1087,26 @@ html:root {
   --bg-elevated: #141a18;
   --fg: #e6ebe9;
 
-  --accent: #6ee7b7;
-  --accent-hover: #8aefc7;
-  --accent-glow: rgba(110, 231, 183, 0.45);
-  --amber: #f5a524;
-  --red: #f2555a;
+  /* Colour is information here, not decoration, and these three are the whole
+     vocabulary: good, watch it, bad. Everything that carries state reads from
+     one of them. */
+  --ok: #1ec745;
+  --warn: #f0f035;
+  --bad: #e81e1e;
+
+  /* Tinted fills, for the handful of places a colour has to sit behind text. */
+  --ok-wash: rgba(30, 199, 69, 0.12);
+  --warn-wash: rgba(240, 240, 53, 0.1);
+  --bad-wash: rgba(232, 30, 30, 0.12);
+
+  /* The kit's own tokens point at the vocabulary, so vendored components pick
+     it up without being edited. --amber carries yellow now: the name is the
+     kit's, the value is ours. */
+  --accent: var(--ok);
+  --amber: var(--warn);
+  --red: var(--bad);
+  --accent-hover: #3ad95d;
+  --accent-glow: rgba(30, 199, 69, 0.45);
 
   --muted: #75817d;
   --muted-strong: #9aa5a1;
@@ -1410,6 +1429,7 @@ body {
 }
 .pa-readout__v--ok { color: var(--accent); }
 .pa-readout__v--warn { color: var(--amber); }
+.pa-readout__v--bad { color: var(--red); }
 .pa-readout__v--idle { color: var(--muted); }
 
 .pa-readout__s {
@@ -1729,10 +1749,34 @@ body {
 /* Today is already outlined. A solid mint block for the selected day shouts
    louder than anything else on the screen, so the selection tints instead. */
 .pa-app .pa-month__day[aria-pressed='true'] {
-  background: rgba(110, 231, 183, 0.12);
+  background: var(--ok-wash);
   border-color: var(--accent);
   color: var(--accent);
   font-weight: 500;
 }
 .pa-app .pa-month__day[aria-pressed='true'] .pa-month__dot { background: var(--accent); }
 .pa-app .pa-month__day[aria-pressed='true'] .pa-month__dot--task { background: var(--amber); opacity: 1; }
+
+
+/* ---------------- Instrument: vendored tints follow the palette ---------------- */
+
+/* The kit hardcodes mint/amber/red washes behind these. The token swap moves
+   their text colour but not the fill, so the fills are restated here. Only the
+   four the app actually renders — its posters and shell aren't used. */
+.pa-app .dk-input:focus,
+.pa-app .dk-textarea:focus {
+  background: var(--ok-wash);
+}
+
+.pa-app .dk-badge--accent {
+  background: var(--ok-wash);
+  border-color: var(--ok);
+}
+.pa-app .dk-badge--amber {
+  background: var(--warn-wash);
+  border-color: var(--warn);
+}
+.pa-app .dk-badge--red {
+  background: var(--bad-wash);
+  border-color: var(--bad);
+}

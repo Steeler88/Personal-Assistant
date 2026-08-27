@@ -19,12 +19,12 @@ export default function Spark({ points, up, w = 64, h = 18 }) {
     .join(' ')
 
   const [lastX, lastY] = coords[coords.length - 1]
-  const stroke = up ? 'var(--accent)' : 'var(--red)'
-  const fill = up ? 'rgba(110,231,183,0.12)' : 'rgba(242,85,90,0.12)'
+  // Same token for line and fill, so the two can't drift apart on a palette change
+  const stroke = up ? 'var(--ok)' : 'var(--bad)'
 
   return (
     <svg className="pa-spark" width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true">
-      <path d={`${line} L${w},${h} L0,${h} Z`} fill={fill} stroke="none" />
+      <path d={`${line} L${w},${h} L0,${h} Z`} fill={stroke} fillOpacity="0.12" stroke="none" />
       <path d={line} fill="none" stroke={stroke} strokeWidth="1.3"
             strokeLinecap="round" strokeLinejoin="round" />
       <circle cx={lastX} cy={lastY} r="1.7" fill={stroke} />
