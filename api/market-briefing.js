@@ -10,6 +10,7 @@
 
 import { summarise } from './_metrics.js'
 import { pickDiverse } from './_news.js'
+import { generateInsight } from './_insight.js'
 
 const SYMBOLS = ['VOO.US', 'QQQ.US', 'PLTR.US', 'NVDA.US', 'AMZN.US', 'TSLA.US', 'SOXL.US']
 
@@ -175,17 +176,22 @@ export default async function handler(req, res) {
       }
     }
 
-    // Trust the client's local date when it sends a valid one; otherwise fall
-    // back to the server's, which is UTC on Vercel.
+    // Written over the final numbers, so the prose matches what's displayed.
+    const { insight, error: insightError } = await generateInsight({ quotes, headlines })
+
     const row = {
       briefing_date: row_date,
+      insight,
       generated_at: new Date().toISOString(),
       quotes,
       headlines,
       eod_fetched_on: eodFetchedOn,
-      // Surfaced so a partly-failed briefing is visibly partial, not silently short
+      // Persisted, so a partly-failed briefing stays visibly partial on reload
       skipped: failures.map((f) => f.sym.replace('.US', '')),
     }
+
+    // Not persisted: why the insight is missing matters now, not tomorrow
+    const meta = { insight_error: insightError }
 
     const save = await fetch(
       `${supabaseUrl}/rest/v1/market_briefings?on_conflict=briefing_date`,
@@ -210,7 +216,8 @@ export default async function handler(req, res) {
     }
 
     const saved = await save.json()
-    return res.status(200).json(Array.isArray(saved) ? saved[0] : saved)
+    const savedRow = Array.isArray(saved) ? saved[0] : saved
+    return res.status(200).json({ ...savedRow, ...meta })
   } catch (err) {
     return res.status(500).json({ error: 'Briefing failed.', detail: String(err?.message ?? err) })
   }

@@ -5,6 +5,15 @@ import { Card, Button, Badge } from '../design-kit'
 
 const MISSING_TABLE = new Set(['PGRST205', '42P01'])
 
+/** A missing insight shouldn't read as a broken feature. */
+function insightMessage(code) {
+  if (code === 'no-key') return 'Quotes updated. No Anthropic key configured, so there is no written read.'
+  if (code === 'bad-key') return 'Quotes updated, but the Anthropic key was rejected.'
+  if (code === 'rate-limited') return 'Quotes updated. The Anthropic API is rate-limited right now, so the written read was skipped.'
+  if (code === 'refused') return 'Quotes updated. The written read was declined this time.'
+  return `Quotes updated, but the written read failed (${code}).`
+}
+
 const pct = (n) => (n === null || n === undefined ? '—' : `${n > 0 ? '+' : ''}${n.toFixed(2)}%`)
 const sign = (n) => (n === null || n === undefined ? '' : n >= 0 ? '' : ' pa-perf__v--down')
 
@@ -96,6 +105,7 @@ export default function MarketBriefing() {
         setBriefing(body)
         // Say so explicitly: identical numbers otherwise look like a broken button
         if (body.unchanged) setNotice(body.message ?? 'No new market close yet.')
+        else if (body.insight_error) setNotice(insightMessage(body.insight_error))
       }
     } catch (err) {
       setError(String(err?.message ?? err))
@@ -144,6 +154,7 @@ export default function MarketBriefing() {
               })()}
             </span>
             {briefing.insight ? null : <Badge tone="neutral">quotes only</Badge>}
+            {briefing.insight && <Badge tone="accent" dot>read</Badge>}
           </div>
 
           {briefing.insight && <p className="pa-brief__insight">{briefing.insight}</p>}
