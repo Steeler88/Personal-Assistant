@@ -6,6 +6,7 @@ import Todos from './components/Todos'
 import Calendar from './components/Calendar'
 import MarketBriefing from './components/MarketBriefing'
 import Nutrition from './components/Nutrition'
+import Whoop from './components/Whoop'
 
 export default function App() {
   // Bumped by any card that writes, so the summary strip stays truthful.
@@ -18,6 +19,7 @@ export default function App() {
       <div className="pa-grid">
         <div className="pa-col">
           <JournalToday onChange={bump} />
+          <Whoop />
           <Nutrition onChange={bump} />
         </div>
         <div className="pa-col">
