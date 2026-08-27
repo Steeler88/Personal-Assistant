@@ -988,3 +988,74 @@ body {
   box-shadow: 0 0 7px var(--accent-glow);
 }
 .pa-perf__v--plain { color: var(--muted-strong); }
+
+/* ---------------- Nutrition ---------------- */
+
+.pa-totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  align-items: baseline;
+  padding-bottom: var(--space-4);
+  margin-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.pa-totals__cell { display: flex; flex-direction: column; gap: 2px; }
+
+.pa-totals__v {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: var(--text-xl);
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.pa-totals__k {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.pa-totals__pending {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--amber);
+}
+
+.pa-meals { list-style: none; margin: 0 0 var(--space-4); padding: 0; }
+
+.pa-meal {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border);
+}
+.pa-meal:last-child { border-bottom: none; }
+
+.pa-meal__type {
+  flex: 0 0 72px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  padding-top: 2px;
+}
+
+.pa-meal__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+
+.pa-meal__desc { font-size: var(--text-sm); color: var(--fg); overflow-wrap: anywhere; }
+
+.pa-meal__macros {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--muted-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.pa-meal__note { font-size: var(--text-xs); color: var(--muted); line-height: 1.45; }
