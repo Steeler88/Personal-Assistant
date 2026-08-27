@@ -1129,11 +1129,12 @@ html:root {
   --ui-dim: #9aa5a1;
   --ui-wash: rgba(230, 235, 233, 0.10);
 
-  /* Four sizes, held to. */
-  --t-label: 10px;
-  --t-body: 13px;
-  --t-value: 15px;
-  --t-display: 22px;
+  /* Four sizes, held to. Nudged up a step: at the smaller scale the panels
+     were reading as mostly gaps with a little text floating in them. */
+  --t-label: 11px;
+  --t-body: 14px;
+  --t-value: 17px;
+  --t-display: 26px;
 
   --muted: #75817d;
   --muted-strong: #9aa5a1;
@@ -1394,7 +1395,7 @@ body {
 .pa-stat__bar i.is-warn { background: var(--warn); }
 .pa-stat__bar i.is-bad { background: var(--bad); }
 /* Unbanded: a day still being eaten, and strain, which has no good end. */
-.pa-stat__bar i.is-idle { background: var(--border-strong); }
+.pa-stat__bar i.is-idle { background: var(--muted); }
 
 /* ---------------- Chips ---------------- */
 
@@ -2062,3 +2063,97 @@ body {
 .pa-nav__btn .pa-emoji { margin-right: 5px; }
 .pa-panel__name .pa-emoji { margin-right: 6px; }
 .pa-stat__k .pa-emoji { margin-right: 5px; }
+
+/* ---------------- Instrument: trends ---------------- */
+
+.pa-charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-5);
+  margin: var(--space-5) 0;
+}
+
+.pa-chart {
+  margin: 0;
+  min-width: 0;
+}
+
+.pa-chart__title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--t-label);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted-strong);
+}
+
+/* The hovered reading replaces the range, so the number never sits on the
+   chart obscuring the line it describes. */
+.pa-chart__read {
+  color: var(--fg);
+  letter-spacing: 0.06em;
+  text-transform: none;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.pa-chart__svg {
+  display: block;
+  width: 100%;
+  height: 132px;
+  overflow: visible;
+  cursor: crosshair;
+}
+
+.pa-chart__axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2px;
+  font-family: var(--font-mono);
+  font-size: var(--t-label);
+  color: var(--muted);
+}
+
+/* ---------------- Instrument: disclosure ---------------- */
+
+.pa-disclose {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-3) 0;
+  margin-top: var(--space-4);
+  background: none;
+  border: 0;
+  border-top: 1px solid var(--border);
+  color: var(--muted-strong);
+  font-family: var(--font-mono);
+  font-size: var(--t-label);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color var(--duration) var(--ease);
+}
+.pa-disclose:hover { color: var(--fg); }
+.pa-disclose:focus-visible { outline: 2px solid var(--ui); outline-offset: 2px; }
+
+.pa-disclose__mark {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-size: var(--t-label);
+  line-height: 1;
+}
+
+.pa-disclose__count {
+  margin-left: auto;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+}

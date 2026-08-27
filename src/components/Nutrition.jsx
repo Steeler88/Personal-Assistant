@@ -201,7 +201,50 @@ export default function Nutrition({ onChange }) {
             </p>
           )}
           {isToday && (
-            <p className="pa-mini__note pa-mini__note--dim">Still eating — judged at the end of the day</p>
+            <>
+              <div className="pa-stat">
+                <span className="pa-stat__k">Still to eat</span>
+                <span className="pa-stat__v">
+                  {Math.max(0, TARGETS.calories - totals.calories)} kcal
+                  <span className="pa-target__of"> · {Math.max(0, TARGETS.protein - totals.protein)}g protein</span>
+                </span>
+              </div>
+              <p className="pa-mini__note pa-mini__note--dim">Judged at the end of the day</p>
+            </>
+          )}
+
+      {days.length > 0 && (
+            <>
+              <span className="pa-field__label" style={{ display: 'block', margin: 'var(--space-6) 0 var(--space-2)' }}>
+                The fortnight
+              </span>
+              <ul className="pa-week">
+                {days.map((d) => {
+                  const t = mealTotals(byDay[d])
+                  const isDay = d === date
+                  return (
+                    <li key={d}>
+                      <button
+                        type="button"
+                        className="pa-week__row"
+                        aria-current={isDay ? 'true' : undefined}
+                        aria-label={`${prettyDate(d)}: ${num(t.calories)} kcal, ${num(t.protein)}g protein`}
+                        onClick={() => setDate(d)}
+                      >
+                        <span className="pa-week__date">{prettyDate(d)}</span>
+                        <span className={`pa-week__v pa-stat__v--${dayTone(t.calories, TARGETS.calories, d === today)}`}>
+                          {num(t.calories)}
+                        </span>
+                        <span className={`pa-week__v pa-stat__v--${dayTone(t.protein, TARGETS.protein, d === today)}`}>
+                          {num(t.protein)}g
+                        </span>
+                        <span className="pa-week__meals">{byDay[d].length} meal{byDay[d].length > 1 ? 's' : ''}</span>
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            </>
           )}
         </div>
 
@@ -304,39 +347,6 @@ export default function Nutrition({ onChange }) {
         </div>
       </div>
 
-      {days.length > 1 && (
-        <>
-          <span className="pa-field__label" style={{ display: 'block', margin: 'var(--space-6) 0 var(--space-2)' }}>
-            The fortnight
-          </span>
-          <ul className="pa-week">
-            {days.map((d) => {
-              const t = mealTotals(byDay[d])
-              const isDay = d === date
-              return (
-                <li key={d}>
-                  <button
-                    type="button"
-                    className="pa-week__row"
-                    aria-current={isDay ? 'true' : undefined}
-                    aria-label={`${prettyDate(d)}: ${num(t.calories)} kcal, ${num(t.protein)}g protein`}
-                    onClick={() => setDate(d)}
-                  >
-                    <span className="pa-week__date">{prettyDate(d)}</span>
-                    <span className={`pa-week__v pa-stat__v--${dayTone(t.calories, TARGETS.calories, d === today)}`}>
-                      {num(t.calories)}
-                    </span>
-                    <span className={`pa-week__v pa-stat__v--${dayTone(t.protein, TARGETS.protein, d === today)}`}>
-                      {num(t.protein)}g
-                    </span>
-                    <span className="pa-week__meals">{byDay[d].length} meal{byDay[d].length > 1 ? 's' : ''}</span>
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
-        </>
-      )}
     </Card>
   )
 }

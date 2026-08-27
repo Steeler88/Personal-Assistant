@@ -4,6 +4,7 @@ import { Card, Button, Badge } from '../design-kit'
 import { prettyDate } from '../lib/dates'
 import { todayKey } from '../lib/today'
 import { recoveryTone, freshness, sleepTone, sleepPct } from '../lib/whoop'
+import TrendChart from './TrendChart'
 
 const MISSING_TABLE = new Set(['PGRST205', '42P01'])
 
@@ -33,15 +34,16 @@ export default function Whoop() {
   const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState(null)
   const [notice, setNotice] = useState(null)
+  const [showNights, setShowNights] = useState(false)
   // Strain needs read:cycles, which connections made before strain existed
   // never granted. Reconnecting is the only way to add it.
   const [strainBlocked, setStrainBlocked] = useState(false)
 
   async function loadStored() {
     const [s, r, c] = await Promise.all([
-      supabase.from('whoop_sleep').select('*').order('night_of', { ascending: false }).limit(14),
-      supabase.from('whoop_recovery').select('*').order('recorded_on', { ascending: false }).limit(14),
-      supabase.from('whoop_cycles').select('*').order('recorded_on', { ascending: false }).limit(14),
+      supabase.from('whoop_sleep').select('*').order('night_of', { ascending: false }).limit(30),
+      supabase.from('whoop_recovery').select('*').order('recorded_on', { ascending: false }).limit(30),
+      supabase.from('whoop_cycles').select('*').order('recorded_on', { ascending: false }).limit(30),
     ])
     const err = s.error || r.error
     if (err) {
@@ -115,6 +117,28 @@ export default function Whoop() {
   const fresh = freshness(latestSleep?.night_of, todayKey())
   const strainOf = (day) => cycles.find((c) => c.recorded_on === day)?.strain
 
+  // Charts read oldest-to-newest; the queries come back newest first.
+  const chrono = (rows) => [...rows].reverse()
+
+  const recoveryPoints = chrono(recovery).map((r) => ({
+    label: prettyDate(r.recorded_on),
+    value: r.recovery_score === null ? null : Math.round(Number(r.recovery_score)),
+    tone: recoveryTone(r.recovery_score),
+  }))
+
+  const sleepPoints = chrono(sleep).map((r) => ({
+    label: prettyDate(r.night_of),
+    value: sleepPct(r.total_sleep_min, r.sleep_needed_min),
+    tone: sleepTone(r.total_sleep_min, r.sleep_needed_min),
+  }))
+
+  // Strain has no good end, so its dots stay unbanded like its bar.
+  const strainPoints = chrono(cycles).map((c) => ({
+    label: prettyDate(c.recorded_on),
+    value: c.strain === null ? null : Number(Number(c.strain).toFixed(1)),
+    tone: 'idle',
+  }))
+
   return (
     <Card>
       {error && <p style={{ color: 'var(--red)', fontSize: 'var(--text-sm)', marginTop: 0 }}>{error}</p>}
@@ -181,11 +205,25 @@ export default function Whoop() {
 
           {sleep.length > 1 && (
             <>
-              <span className="pa-field__label" style={{ display: 'block', margin: 'var(--space-5) 0 var(--space-2)' }}>
-                Recent nights
-              </span>
-              <ul className="pa-whoop__list">
-                {sleep.slice(0, 7).map((s) => {
+              <div className="pa-charts">
+                <TrendChart title="Recovery" points={recoveryPoints} max={100} unit="%" guides={[33, 67]} />
+                <TrendChart title="Sleep against need" points={sleepPoints} min={50} max={130} unit="%" guides={[85, 100]} />
+                <TrendChart title="Strain" points={strainPoints} max={21} guides={[7, 14]} />
+              </div>
+
+              <button
+                type="button"
+                className="pa-disclose"
+                aria-expanded={showNights}
+                onClick={() => setShowNights((v) => !v)}
+              >
+                <span className="pa-disclose__mark" aria-hidden="true">{showNights ? '−' : '+'}</span>
+                Night by night
+                <span className="pa-disclose__count">{sleep.length} nights</span>
+              </button>
+
+              <ul className="pa-whoop__list" hidden={!showNights}>
+                {sleep.map((s) => {
                   const rec = recovery.find((r) => r.recorded_on === s.night_of)
                   const strain = strainOf(s.night_of)
                   return (

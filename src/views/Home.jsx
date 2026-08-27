@@ -299,17 +299,21 @@ export default function Home() {
             <p className="pa-mini__note">Nothing scheduled in the next two weeks.</p>
           ) : (
             <ul className="pa-mini">
-              {(schedule.today.length ? schedule.today : schedule.upcoming.slice(0, 5)).map((it) => (
-                <li key={`${it.kind}-${it.id}-${it.date}`} className="pa-mini__row">
-                  <span className={`pa-mini__when${it.kind === 'todo' ? ' pa-mini__when--task' : ''}`}>
-                    {it.kind === 'todo' ? 'Due' : prettyTime(it.time) ?? 'All day'}
-                  </span>
-                  <span className="pa-mini__title">{it.title}</span>
-                  {schedule.today.length === 0 && (
-                    <span className="pa-mini__tag">{prettyDate(it.date)}</span>
-                  )}
-                </li>
-              ))}
+              {/* Today first, then whatever is coming. Showing only today left the
+                  panel at one line on a quiet morning. */}
+              {[...schedule.today, ...schedule.upcoming.filter((u) => u.date !== today)]
+                .slice(0, 7)
+                .map((it) => (
+                  <li key={`${it.kind}-${it.id}-${it.date}`} className="pa-mini__row">
+                    <span className={`pa-mini__when${it.kind === 'todo' ? ' pa-mini__when--task' : ''}`}>
+                      {it.kind === 'todo' ? 'Due' : prettyTime(it.time) ?? 'All day'}
+                    </span>
+                    <span className="pa-mini__title">{it.title}</span>
+                    <span className="pa-mini__tag">
+                      {it.date === today ? 'today' : prettyDate(it.date)}
+                    </span>
+                  </li>
+                ))}
             </ul>
           )}
         </Panel>
