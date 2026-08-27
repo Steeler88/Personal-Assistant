@@ -285,10 +285,10 @@ body {
 .pa-datebtn svg { color: var(--muted); flex-shrink: 0; }
 
 .pa-cal {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  z-index: 40;
+  /* Fixed + portalled to <body>: .dk-shell sets overflow:hidden, which would
+     clip this popover near the bottom of the page with no way to scroll to it. */
+  position: fixed;
+  z-index: 50;
   width: 252px;
   padding: var(--space-3);
   background: var(--bg-elevated);

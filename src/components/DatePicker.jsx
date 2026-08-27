@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { toKey, parseKey, daysInMonth, firstWeekday, prettyDate, MONTHS, WEEKDAYS } from '../lib/dates'
 import { todayKey } from '../lib/today'
 
@@ -8,7 +9,10 @@ import { todayKey } from '../lib/today'
  */
 export default function DatePicker({ label, value, onChange, disabled }) {
   const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState(null)
   const wrapRef = useRef(null)
+  const calRef = useRef(null)
+  const triggerRef = useRef(null)
 
   const today = todayKey()
   const selected = parseKey(value)
@@ -30,7 +34,9 @@ export default function DatePicker({ label, value, onChange, disabled }) {
     if (!open) return
 
     function onDocClick(e) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false)
+      const inTrigger = wrapRef.current?.contains(e.target)
+      const inCalendar = calRef.current?.contains(e.target)
+      if (!inTrigger && !inCalendar) setOpen(false)
     }
     function onKey(e) {
       if (e.key === 'Escape') setOpen(false)
@@ -41,6 +47,43 @@ export default function DatePicker({ label, value, onChange, disabled }) {
     return () => {
       document.removeEventListener('mousedown', onDocClick)
       document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setPos(null)
+      return
+    }
+
+    function place() {
+      const t = triggerRef.current?.getBoundingClientRect()
+      if (!t) return
+      const h = calRef.current?.offsetHeight ?? 340
+      const w = calRef.current?.offsetWidth ?? 252
+      const gap = 6
+
+      // Flip above the trigger when there isn't room below and there is above
+      const roomBelow = window.innerHeight - t.bottom - gap
+      const roomAbove = t.top - gap
+      const above = roomBelow < h && roomAbove > roomBelow
+
+      let top = above ? t.top - h - gap : t.bottom + gap
+      top = Math.max(8, Math.min(top, window.innerHeight - h - 8))
+
+      let left = Math.min(t.left, window.innerWidth - w - 8)
+      left = Math.max(8, left)
+
+      setPos({ top, left })
+    }
+
+    place()
+    // capture:true so scrolling any ancestor keeps the popover anchored
+    window.addEventListener('scroll', place, true)
+    window.addEventListener('resize', place)
+    return () => {
+      window.removeEventListener('scroll', place, true)
+      window.removeEventListener('resize', place)
     }
   }, [open])
 
@@ -66,6 +109,7 @@ export default function DatePicker({ label, value, onChange, disabled }) {
       {label && <span className="pa-field__label">{label}</span>}
 
       <button
+        ref={triggerRef}
         type="button"
         className="pa-datebtn"
         disabled={disabled}
@@ -81,8 +125,19 @@ export default function DatePicker({ label, value, onChange, disabled }) {
         <span className={value ? '' : 'pa-datebtn--empty'}>{value ? prettyDate(value) : 'Pick a date'}</span>
       </button>
 
-      {open && (
-        <div className="pa-cal" role="dialog" aria-label="Choose a date">
+      {open && createPortal(
+        <div
+          className="pa-cal"
+          ref={calRef}
+          role="dialog"
+          aria-label="Choose a date"
+          style={{
+            top: pos ? `${pos.top}px` : 0,
+            left: pos ? `${pos.left}px` : 0,
+            // Hide for the first paint, before we've measured where it goes
+            visibility: pos ? 'visible' : 'hidden',
+          }}
+        >
           <div className="pa-cal__head">
             <button type="button" className="pa-cal__nav" aria-label="Previous month" onClick={() => step(-1)}>‹</button>
             <span className="pa-cal__month">{MONTHS[view.m]} {view.y}</span>
@@ -121,7 +176,8 @@ export default function DatePicker({ label, value, onChange, disabled }) {
               </button>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
