@@ -9,10 +9,13 @@
  */
 
 import { summarise } from './_metrics.js'
+import { pickDiverse } from './_news.js'
 
-// Sectors named in the project notes: AI/semis, broad market, energy, tech.
-const SYMBOLS = ['NVDA.US', 'AMD.US', 'SPY.US', 'XOM.US', 'QQQ.US']
-const NEWS_SYMBOL = 'NVDA.US'
+const SYMBOLS = ['VOO.US', 'QQQ.US', 'PLTR.US', 'NVDA.US', 'AMZN.US', 'TSLA.US', 'SOXL.US']
+
+// Unfiltered market news, not one symbol's feed: asking for NVDA's news
+// returned five Nvidia stories. Over-fetch, then thin it out.
+const NEWS_FETCH = 40
 const NEWS_LIMIT = 5
 
 // Enough bars for a 200-day moving average plus slack for holidays.
@@ -72,7 +75,7 @@ export default async function handler(req, res) {
             .catch((e) => ({ sym, ok: false, status: 0, body: String(e?.message ?? e) }))
         )
       ),
-      fetch(`https://eodhd.com/api/news?api_token=${key}&s=${NEWS_SYMBOL}&limit=${NEWS_LIMIT}&fmt=json`),
+      fetch(`https://eodhd.com/api/news?api_token=${key}&limit=${NEWS_FETCH}&fmt=json`),
     ])
 
     const failures = histResults.filter((r) => !r.ok)
@@ -101,11 +104,13 @@ export default async function handler(req, res) {
     if (newsRes.ok) {
       const news = await newsRes.json()
       if (Array.isArray(news)) {
-        headlines = news.slice(0, NEWS_LIMIT).map((n) => ({
+        // Decode first: entity-escaped titles would compare as different strings
+        const decoded = news.map((n) => ({
           title: decodeEntities(n.title ?? ''),
           date: n.date ?? null,
           link: n.link ?? null,
         }))
+        headlines = pickDiverse(decoded, { limit: NEWS_LIMIT })
       }
     }
 
