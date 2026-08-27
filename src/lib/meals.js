@@ -38,13 +38,14 @@ export function mealTotals(rows) {
 }
 
 /**
- * "Bacon 3.5x · Eggs 4x". Falls back to what you typed, both for meals logged
- * before the estimator returned items and for any estimate that came back
- * without them.
+ * "Bacon - 3.5x, Eggs - 4x, Beef - 1lb" — Johnny's format, hyphen and comma,
+ * not the middot used elsewhere in the app. Falls back to what you typed, both
+ * for meals logged before the estimator returned items and for any estimate
+ * that came back without them.
  */
 export function mealSummary(row) {
   if (!Array.isArray(row?.items) || row.items.length === 0) return row?.description ?? ''
-  return row.items.map((i) => `${i.food} ${i.amount}`).join(' · ')
+  return row.items.map((i) => `${i.food} - ${i.amount}`).join(', ')
 }
 
 /** Guess the meal from the clock, so a quick log is one field instead of two. */
