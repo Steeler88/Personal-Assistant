@@ -115,7 +115,7 @@ export default function MarketBriefing() {
 
   if (error === 'missing-table') {
     return (
-      <Card eyebrow="Finances" title="Market Briefing">
+      <Card>
         <p style={{ color: 'var(--muted-strong)', fontSize: 'var(--text-sm)', lineHeight: 1.6, margin: 0 }}>
           The <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>market_briefings</code> table
           doesn’t exist yet. Run{' '}
@@ -127,7 +127,7 @@ export default function MarketBriefing() {
   }
 
   return (
-    <Card eyebrow="Finances" title="Market Briefing">
+    <Card>
       {error && <p style={{ color: 'var(--red)', fontSize: 'var(--text-sm)', marginTop: 0 }}>{error}</p>}
       {notice && (
         <p className="pa-brief__notice">

@@ -1,19 +1,12 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { todayKey } from '../lib/today'
-import { Card, Button, Input, Badge } from '../design-kit'
+import { Card, Button, Input } from '../design-kit'
 import { Choice } from './controls'
+import { MEALS, sortMeals, mealTotals, estimateMacros } from '../lib/meals'
 
 const MISSING_TABLE = new Set(['PGRST205', '42P01'])
 
-const MEALS = [
-  { value: 'breakfast', label: 'Breakfast' },
-  { value: 'lunch', label: 'Lunch' },
-  { value: 'dinner', label: 'Dinner' },
-  { value: 'snack', label: 'Snack' },
-]
-
-const ORDER = { breakfast: 0, lunch: 1, dinner: 2, snack: 3 }
 const num = (n) => (n === null || n === undefined ? '—' : Math.round(Number(n)))
 
 export default function Nutrition({ onChange }) {
@@ -32,51 +25,23 @@ export default function Nutrition({ onChange }) {
       const { data, error } = await supabase.from('meals').select('*').eq('eaten_on', date)
       if (cancelled) return
       if (error) setError(MISSING_TABLE.has(error.code) ? 'missing-table' : error.message)
-      else setRows(sort(data))
+      else setRows(sortMeals(data))
       setLoading(false)
     }
     load()
     return () => { cancelled = true }
   }, [date])
 
-  const sort = (list) =>
-    [...list].sort((a, b) =>
-      ORDER[a.meal] !== ORDER[b.meal]
-        ? ORDER[a.meal] - ORDER[b.meal]
-        : a.created_at < b.created_at ? -1 : 1
-    )
-
   /** Estimate macros for a saved meal and write them back. */
   async function estimate(row) {
     setEstimatingId(row.id)
     setError(null)
-    try {
-      const res = await fetch('/api/estimate-macros', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description: row.description, meal: row.meal }),
-      })
-      const body = await res.json()
-      if (!res.ok) {
-        setError(body.error || `Estimate failed (${res.status})`)
-      } else {
-        const patch = {
-          calories: body.calories,
-          protein_g: body.protein_g,
-          fat_g: body.fat_g,
-          carbs_g: body.carbs_g,
-          estimate_note: body.note,
-          estimated_at: new Date().toISOString(),
-        }
-        const { error } = await supabase.from('meals').update(patch).eq('id', row.id)
-        if (error) setError(error.message)
-        else {
-          setRows((list) => sort(list.map((r) => (r.id === row.id ? { ...r, ...patch } : r))))
-          onChange?.()
-        }
-      }
-    } catch (err) {
-      setError(String(err?.message ?? err))
+    const { patch, error } = await estimateMacros(row)
+    if (error) {
+      setError(error)
+    } else {
+      setRows((list) => sortMeals(list.map((r) => (r.id === row.id ? { ...r, ...patch } : r))))
+      onChange?.()
     }
     setEstimatingId(null)
   }
@@ -102,7 +67,7 @@ export default function Nutrition({ onChange }) {
       return
     }
 
-    setRows((list) => sort([...list, data]))
+    setRows((list) => sortMeals([...list, data]))
     setDescription('')
     setMeal(null)
     setAdding(false)
@@ -122,7 +87,7 @@ export default function Nutrition({ onChange }) {
 
   if (error === 'missing-table') {
     return (
-      <Card eyebrow="Health" title="Nutrition">
+      <Card>
         <p style={{ color: 'var(--muted-strong)', fontSize: 'var(--text-sm)', lineHeight: 1.6, margin: 0 }}>
           The <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>meals</code> table doesn’t exist
           yet. Run <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>SCHEMA-nutrition.sql</code>{' '}
@@ -132,20 +97,11 @@ export default function Nutrition({ onChange }) {
     )
   }
 
-  const estimated = rows.filter((r) => r.estimated_at)
-  const totals = estimated.reduce(
-    (acc, r) => ({
-      calories: acc.calories + Number(r.calories ?? 0),
-      protein: acc.protein + Number(r.protein_g ?? 0),
-      fat: acc.fat + Number(r.fat_g ?? 0),
-      carbs: acc.carbs + Number(r.carbs_g ?? 0),
-    }),
-    { calories: 0, protein: 0, fat: 0, carbs: 0 }
-  )
-  const pending = rows.length - estimated.length
+  const totals = mealTotals(rows)
+  const pending = totals.pending
 
   return (
-    <Card eyebrow="Health" title="Nutrition">
+    <Card>
       {error && <p style={{ color: 'var(--red)', fontSize: 'var(--text-sm)', marginTop: 0 }}>{error}</p>}
 
       {rows.length > 0 && (

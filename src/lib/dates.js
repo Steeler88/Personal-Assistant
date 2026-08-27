@@ -85,3 +85,26 @@ export function eachDay(from, to) {
 }
 
 export const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+/** `n` days after a 'YYYY-MM-DD' key, in local time. */
+export function addDays(key, n) {
+  const p = parseKey(key)
+  const d = new Date(p.y, p.m, p.d + n)
+  return toKey(d.getFullYear(), d.getMonth(), d.getDate())
+}
+
+/** Morning / afternoon / evening / night, for a dashboard whose whole
+ *  subject is the current moment. */
+export function timeOfDay(d = new Date()) {
+  const h = d.getHours()
+  if (h < 12) return 'morning'
+  if (h < 17) return 'afternoon'
+  if (h < 21) return 'evening'
+  return 'night'
+}
+
+/** 'HH:MM' on a 24-hour clock — the readout is an instrument, not a letter. */
+export function clock(d = new Date()) {
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`
+}

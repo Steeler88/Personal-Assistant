@@ -85,7 +85,7 @@ export default function Whoop() {
 
   if (error === 'missing-table') {
     return (
-      <Card eyebrow="Health" title="Whoop">
+      <Card>
         <p style={{ color: 'var(--muted-strong)', fontSize: 'var(--text-sm)', lineHeight: 1.6, margin: 0 }}>
           The Whoop tables don’t exist yet. Run{' '}
           <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>SCHEMA-whoop.sql</code> in the
@@ -100,7 +100,7 @@ export default function Whoop() {
   const connected = status?.connected
 
   return (
-    <Card eyebrow="Health" title="Whoop">
+    <Card>
       {error && <p style={{ color: 'var(--red)', fontSize: 'var(--text-sm)', marginTop: 0 }}>{error}</p>}
       {notice && <p className="pa-brief__notice">{notice}</p>}
 

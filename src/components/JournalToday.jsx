@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { todayKey, longDate } from '../lib/today'
+import { todayKey } from '../lib/today'
 import { Card, Button, Textarea, Badge } from '../design-kit'
 import { Scale, Choice, Field } from './controls'
 
@@ -164,7 +164,7 @@ export default function JournalToday({ onChange }) {
 
   if (error === 'missing-table') {
     return (
-      <Card eyebrow="Today" title={longDate()}>
+      <Card>
         <p style={{ color: 'var(--muted-strong)', fontSize: 'var(--text-sm)', lineHeight: 1.6, margin: 0 }}>
           The journal tables don’t exist yet. Run{' '}
           <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>SCHEMA-journal.sql</code> in the
@@ -188,7 +188,7 @@ export default function JournalToday({ onChange }) {
   const setN = set(setNight)
 
   return (
-    <Card eyebrow="Today" title={longDate()}>
+    <Card>
       {error && <p style={{ color: 'var(--red)', fontSize: 'var(--text-sm)', marginTop: 0 }}>{error}</p>}
 
       <div className="pa-tabs" role="tablist" aria-label="Journal section">

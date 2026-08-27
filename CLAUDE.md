@@ -1,14 +1,30 @@
 # Personal Assistant — working notes
 
-A single-page personal dashboard: journal, to-dos, calendar, nutrition, market
-briefing, and Whoop. Built for one person (Johnny), no login.
+A personal dashboard: journal, to-dos, calendar, nutrition, market briefing,
+and Whoop. Built for one person (Johnny), no login.
+
+**Home is a summary; each section gets its own screen.** The home screen reads
+all six sections at once and carries only the daily actions (tick a task, log a
+meal, open the journal); everything else lives behind a tab. Navigation is a
+hash router hand-rolled in `src/lib/router.js` — seven screens did not warrant a
+routing dependency, and the hash keeps deep links and the back button working
+with no Vercel rewrite.
 
 ## Stack
 
 React 18 + Vite (plain JS, not TS), Supabase for data, Vercel for hosting and
-serverless functions. `src/design-kit.tsx` is a **vendored** design system —
-dark, mint accent, Newsreader italic headings. Don't edit it; build components
-from its CSS variables instead (see `src/components/controls.jsx`).
+serverless functions. `src/design-kit.tsx` is a **vendored** design system.
+Don't edit it; build components from its CSS variables instead (see
+`src/components/controls.jsx`).
+
+**The visual direction is "Instrument"** — mono-first, dense, with colour
+carrying state (mint good, amber watch, red bad) rather than decorating. It is
+applied entirely as token overrides and app classes in the INSTRUMENT block at
+the bottom of `src/index.css`; the kit itself is untouched. Those overrides use
+`html:root` rather than `:root` because the kit injects its own `<style>` at
+import time and tag order isn't ours to control. The kit's Newsreader serif is
+no longer loaded — five places that used it are redirected to mono or sans in
+that same block.
 
 ## Where things are
 
@@ -111,10 +127,10 @@ moved, never recommends buying or selling. Keep it that way.
 
 ## Status
 
-**Built and working:** journal (structured morning/night, collapses when saved),
-to-dos, calendar (recurring events, dated to-dos shown on it), summary strip,
-market briefing (live quotes + AI read), nutrition (meal log + macro estimates),
-Whoop (sleep + recovery, connected and syncing).
+**Built and working:** the summary home, journal (structured morning/night,
+collapses when saved), to-dos, calendar (recurring events, dated to-dos shown on
+it), market briefing (live quotes + AI read), nutrition (meal log + macro
+estimates), Whoop (sleep + recovery, connected and syncing).
 
 **Open:**
 - **Fidelity** — deliberately last. No public API; the only safe route is an
@@ -122,6 +138,11 @@ Whoop (sleep + recovery, connected and syncing).
   brokerage credentials.
 - **Reminders** — never decided. The calendar may already cover it; ask before
   building a second card that overlaps to-dos.
+- **Deeper section screens** — the tabs currently show each section laid out
+  full width, which is where the shell-first rebuild stopped. The intent is that
+  each becomes genuinely more detailed than its home panel: history lists,
+  weekly aggregates, trends. Most of it needs no new integration, since the
+  tables already hold the history.
 - **Journal trends and charts** — wanted in his notes, but there are only a few
   entries so far. Revisit once a real series exists.
 - **Schoolwork, baseball, options** — explicitly deferred.

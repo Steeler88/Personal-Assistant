@@ -111,7 +111,7 @@ export default function Todos({ onChange }) {
 
   if (error === 'missing-table') {
     return (
-      <Card eyebrow="Tasks" title="To-Do">
+      <Card>
         <p style={{ color: 'var(--muted-strong)', fontSize: 'var(--text-sm)', lineHeight: 1.6, margin: 0 }}>
           The <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>todos</code> table doesn’t exist
           yet. Run <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>SCHEMA-todos.sql</code> in
@@ -124,7 +124,7 @@ export default function Todos({ onChange }) {
   const open = rows.filter((r) => !r.done).length
 
   return (
-    <Card eyebrow="Tasks" title="To-Do">
+    <Card>
       {error && <p style={{ color: 'var(--red)', fontSize: 'var(--text-sm)', marginTop: 0 }}>{error}</p>}
 
       <form className="pa-todo__add" onSubmit={add}>
