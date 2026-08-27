@@ -19,7 +19,7 @@ function byTime(a, b) {
   return a.start_time < b.start_time ? -1 : 1
 }
 
-export default function Calendar() {
+export default function Calendar({ onChange }) {
   const today = todayKey()
   const todayParts = parseKey(today)
 
@@ -91,6 +91,7 @@ export default function Calendar() {
       setError(MISSING_TABLE.has(error.code) ? 'missing-table' : error.message)
     } else {
       setEvents((list) => [...list, data])
+      onChange?.()
       setTitle('')
       setTime('')
       setNote('')
@@ -102,6 +103,7 @@ export default function Calendar() {
     const prev = events
     setEvents((list) => list.filter((x) => x.id !== row.id))
     const { error } = await supabase.from('calendar_events').delete().eq('id', row.id)
+    onChange?.()
     if (error) {
       setError(error.message)
       setEvents(prev)

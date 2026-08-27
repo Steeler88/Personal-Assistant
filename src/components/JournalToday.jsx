@@ -21,8 +21,12 @@ const EMPTY_NIGHT = {
 // Compare only the fields we own, so server columns (timestamps) don't read as edits
 const same = (a, b) => Object.keys(a).every((k) => (a[k] ?? '') === (b[k] ?? ''))
 
-export default function JournalToday() {
+export default function JournalToday({ onChange }) {
   const date = todayKey()
+
+  // Default to whichever half you're actually likely to fill in right now.
+  // Both stay reachable via the toggle; only one renders at a time.
+  const [section, setSection] = useState(() => (new Date().getHours() >= 17 ? 'night' : 'morning'))
 
   const [morning, setMorning] = useState(EMPTY_MORNING)
   const [night, setNight] = useState(EMPTY_NIGHT)
@@ -96,9 +100,11 @@ export default function JournalToday() {
     } else if (which === 'morning') {
       setMorning(payload)
       setSavedMorning(payload)
+      onChange?.()
     } else {
       setNight(payload)
       setSavedNight(payload)
+      onChange?.()
     }
     setSaving(null)
   }
@@ -128,10 +134,29 @@ export default function JournalToday() {
     <Card eyebrow="Today" title={longDate()}>
       {error && <p style={{ color: 'var(--red)', fontSize: 'var(--text-sm)', marginTop: 0 }}>{error}</p>}
 
+      <div className="pa-tabs" role="tablist" aria-label="Journal section">
+        {[
+          { key: 'morning', label: 'Morning', saved: morningSaved, dirty: morningChanged },
+          { key: 'night', label: 'Night', saved: nightSaved, dirty: nightChanged },
+        ].map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            role="tab"
+            aria-selected={section === t.key}
+            className="pa-tabs__btn"
+            onClick={() => setSection(t.key)}
+          >
+            {t.label}
+            {t.dirty && <span className="pa-tabs__dot pa-tabs__dot--warn" aria-label="unsaved" />}
+            {!t.dirty && t.saved && <span className="pa-tabs__dot" aria-label="saved" />}
+          </button>
+        ))}
+      </div>
+
       {/* ---------------- Morning ---------------- */}
-      <section className="pa-section">
+      <section className="pa-section" hidden={section !== 'morning'}>
         <div className="pa-section__head">
-          <span className="pa-section__title">Morning</span>
           {morningSaved && !morningChanged && <Badge tone="accent" dot>Saved</Badge>}
           {morningChanged && <Badge tone="amber" dot>Unsaved</Badge>}
         </div>
@@ -160,9 +185,8 @@ export default function JournalToday() {
       </section>
 
       {/* ---------------- Night ---------------- */}
-      <section className="pa-section">
+      <section className="pa-section" hidden={section !== 'night'}>
         <div className="pa-section__head">
-          <span className="pa-section__title">Night</span>
           {nightSaved && !nightChanged && <Badge tone="accent" dot>Saved</Badge>}
           {nightChanged && <Badge tone="amber" dot>Unsaved</Badge>}
         </div>

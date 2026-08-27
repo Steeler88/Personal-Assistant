@@ -37,7 +37,7 @@ function dueLabel(due, done) {
   return { text: due, tone: 'neutral' }
 }
 
-export default function Todos() {
+export default function Todos({ onChange }) {
   const [rows, setRows] = useState([])
   const [task, setTask] = useState('')
   const [due, setDue] = useState('')
@@ -79,6 +79,7 @@ export default function Todos() {
       setError(MISSING_TABLE.has(error.code) ? 'missing-table' : error.message)
     } else {
       setRows((r) => sortTodos([...r, data]))
+      onChange?.()
       setTask('')
       setDue('')
       setPriority(null)
@@ -90,6 +91,7 @@ export default function Todos() {
     // Optimistic: the checkbox should feel instant, and we roll back on failure.
     setRows((r) => sortTodos(r.map((x) => (x.id === row.id ? { ...x, done } : x))))
     const { error } = await supabase.from('todos').update({ done }).eq('id', row.id)
+    onChange?.()
     if (error) {
       setError(error.message)
       setRows((r) => sortTodos(r.map((x) => (x.id === row.id ? { ...x, done: !done } : x))))
@@ -100,6 +102,7 @@ export default function Todos() {
     const prev = rows
     setRows((r) => r.filter((x) => x.id !== row.id))
     const { error } = await supabase.from('todos').delete().eq('id', row.id)
+    onChange?.()
     if (error) {
       setError(error.message)
       setRows(prev)

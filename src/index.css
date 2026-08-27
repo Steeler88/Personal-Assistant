@@ -48,14 +48,20 @@ body {
 }
 
 .pa-scale {
-  display: flex;
+  /* Grid, not flex-wrap: wrapping produced a ragged 7+3 split with the second
+     row's buttons stretched wider than the first's. */
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
   gap: 4px;
-  flex-wrap: wrap;
+}
+
+/* On a phone, two even rows of five beat one row of ten cramped buttons */
+@media (max-width: 520px) {
+  .pa-scale { grid-template-columns: repeat(5, 1fr); }
 }
 
 .pa-scale__btn {
-  flex: 1 1 auto;
-  min-width: 34px;
+  min-width: 0;
   min-height: 38px;
   padding: 0 2px;
   background: var(--card);
@@ -128,26 +134,16 @@ body {
   border-color: var(--amber);
 }
 
-.pa-section + .pa-section {
-  margin-top: var(--space-10);
-  padding-top: var(--space-8);
-  border-top: 1px solid var(--border);
-}
+/* Sections are mutually exclusive now (only one renders at a time), so the
+   old "separate two stacked sections" divider would draw against nothing. */
 
 .pa-section__head {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  margin-bottom: var(--space-6);
+  margin-bottom: var(--space-4);
 }
-
-.pa-section__title {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--muted-strong);
-}
+.pa-section__head:empty { display: none; }
 
 .pa-fields {
   display: flex;
@@ -550,3 +546,129 @@ body {
 .pa-select:hover { border-color: var(--border-strong); }
 .pa-select:focus { border-color: var(--accent); }
 .pa-select option { background: var(--bg-elevated); color: var(--fg); }
+
+/* ---------------- Page layout ---------------- */
+
+.pa-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+  align-items: start;
+}
+
+/* Two columns once there's genuinely room; single column on phones/narrow */
+@media (min-width: 1000px) {
+  .pa-grid {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  }
+}
+
+.pa-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;   /* let children shrink instead of forcing the column wider */
+}
+
+/* ---------------- Summary strip ---------------- */
+
+.pa-summary {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-6);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+@media (min-width: 640px) {
+  .pa-summary { grid-template-columns: repeat(3, 1fr); }
+  .pa-summary__item + .pa-summary__item {
+    padding-left: var(--space-6);
+    border-left: 1px solid var(--border);
+  }
+}
+
+.pa-summary__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.pa-summary__label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.pa-summary__value {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: var(--text-lg);
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pa-summary__value--on { color: var(--accent); }
+.pa-summary__value--muted { color: var(--muted); }
+
+.pa-summary__sub {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pa-summary__sub--warn { color: var(--amber); }
+
+/* ---------------- Journal section tabs ---------------- */
+
+.pa-tabs {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+}
+
+.pa-tabs__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 34px;
+  padding: 0 var(--space-4);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color var(--duration) var(--ease),
+              border-color var(--duration) var(--ease),
+              background var(--duration) var(--ease);
+}
+.pa-tabs__btn:hover { color: var(--fg); border-color: var(--border-strong); }
+.pa-tabs__btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pa-tabs__btn[aria-selected='true'] {
+  background: var(--card-elevated);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.pa-tabs__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.pa-tabs__dot--warn { background: var(--amber); }
+
+/* The section head now only carries a status badge, so drop its old spacing */
+.pa-section__head:empty { display: none; }
