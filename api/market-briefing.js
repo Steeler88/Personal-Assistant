@@ -8,10 +8,15 @@
  * The dashboard reads the saved row from Supabase directly.
  */
 
+import { summarise } from './_metrics.js'
+
 // Sectors named in the project notes: AI/semis, broad market, energy, tech.
 const SYMBOLS = ['NVDA.US', 'AMD.US', 'SPY.US', 'XOM.US', 'QQQ.US']
 const NEWS_SYMBOL = 'NVDA.US'
 const NEWS_LIMIT = 5
+
+// Enough bars for a 200-day moving average plus slack for holidays.
+const HISTORY_DAYS = 400
 
 // Vercel runs UTC, so a briefing generated on a Tuesday evening in Central
 // time would be filed under Wednesday. The browser sends its own local date.
@@ -54,50 +59,41 @@ export default async function handler(req, res) {
   }
 
   try {
-    const [first, ...rest] = SYMBOLS
+    const since = new Date(Date.now() - HISTORY_DAYS * 86400000).toISOString().slice(0, 10)
 
-    const [quoteRes, newsRes] = await Promise.all([
-      fetch(
-        `https://eodhd.com/api/real-time/${first}?s=${rest.join(',')}&api_token=${key}&fmt=json`
+    // EOD history rather than real-time: on the free plan the real-time endpoint
+    // returns the same closing figures, but a history call also yields the
+    // multi-period performance, sparkline and indicators for the same quota.
+    const [histResults, newsRes] = await Promise.all([
+      Promise.all(
+        SYMBOLS.map((sym) =>
+          fetch(`https://eodhd.com/api/eod/${sym}?api_token=${key}&fmt=json&period=d&from=${since}`)
+            .then(async (r) => ({ sym, ok: r.ok, status: r.status, body: r.ok ? await r.json() : await r.text() }))
+            .catch((e) => ({ sym, ok: false, status: 0, body: String(e?.message ?? e) }))
+        )
       ),
-      fetch(
-        `https://eodhd.com/api/news?api_token=${key}&s=${NEWS_SYMBOL}&limit=${NEWS_LIMIT}&fmt=json`
-      ),
+      fetch(`https://eodhd.com/api/news?api_token=${key}&s=${NEWS_SYMBOL}&limit=${NEWS_LIMIT}&fmt=json`),
     ])
 
-    if (!quoteRes.ok) {
-      const body = await quoteRes.text()
-      // The free tier allows 20 calls a day and a briefing costs about six, so
-      // running out is an ordinary outcome, not a crash. Say so plainly.
-      const looksRateLimited =
-        quoteRes.status === 429 || /limit|quota|exceed/i.test(body)
-      return res.status(502).json({
-        error: looksRateLimited
-          ? 'Daily EODHD limit reached (20 calls/day on the free plan). It resets at midnight UTC.'
-          : `EODHD quotes failed (${quoteRes.status})`,
-        detail: body.slice(0, 200),
-      })
-    }
-
-    const raw = await quoteRes.json()
-    const rows = Array.isArray(raw) ? raw : [raw]
-
-    // EODHD returns "NA" for a symbol the plan can't serve; keep the good ones
-    // rather than failing the whole briefing.
-    const quotes = rows
-      .filter((r) => r && r.code && typeof r.close === 'number')
-      .map((r) => ({
-        symbol: String(r.code).replace('.US', ''),
-        close: r.close,
-        previous_close: r.previousClose ?? null,
-        change: r.change ?? null,
-        change_p: r.change_p ?? null,
-        volume: r.volume ?? null,
-        timestamp: r.timestamp ?? null,
-      }))
+    const failures = histResults.filter((r) => !r.ok)
+    const quotes = histResults
+      .filter((r) => r.ok && Array.isArray(r.body))
+      .map((r) => summarise(r.sym, r.body))
+      .filter(Boolean)
 
     if (quotes.length === 0) {
-      return res.status(502).json({ error: 'EODHD returned no usable quotes.', detail: rows })
+      const detail = failures.map((f) => `${f.sym}: ${String(f.body).slice(0, 80)}`).join(' | ')
+      // 20 calls a day with a ~6-call briefing makes exhaustion routine, and the
+      // 500-call buffer absorbs overflow until it too runs out. Say which it is.
+      const looksRateLimited = failures.some(
+        (f) => f.status === 429 || /limit|quota|exceed/i.test(String(f.body))
+      )
+      return res.status(502).json({
+        error: looksRateLimited
+          ? 'EODHD limit reached — the daily 20 and the extra buffer are both used up.'
+          : 'EODHD returned no usable history.',
+        detail,
+      })
     }
 
     // News is a nice-to-have; a failure here shouldn't lose the quotes.
@@ -121,6 +117,8 @@ export default async function handler(req, res) {
       generated_at: new Date().toISOString(),
       quotes,
       headlines,
+      // Surfaced so a partly-failed briefing is visibly partial, not silently short
+      skipped: failures.map((f) => f.sym.replace('.US', '')),
     }
 
     const save = await fetch(

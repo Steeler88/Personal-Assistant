@@ -915,3 +915,41 @@ body {
   font-size: var(--text-xs);
   color: var(--muted);
 }
+
+/* Sparkline + multi-period performance */
+
+.pa-quote { display: block; }
+
+.pa-quote__top {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.pa-spark { display: block; opacity: 0.85; }
+
+.pa-perf {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: 4px;
+  padding-left: 1px;
+}
+
+.pa-perf__cell {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.pa-perf__k {
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.pa-perf__v { color: var(--accent); font-variant-numeric: tabular-nums; }
+.pa-perf__v--down { color: var(--red); }

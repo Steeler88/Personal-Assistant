@@ -6,6 +6,30 @@ import { Card, Button, Badge } from '../design-kit'
 const MISSING_TABLE = new Set(['PGRST205', '42P01'])
 
 const pct = (n) => (n === null || n === undefined ? '—' : `${n > 0 ? '+' : ''}${n.toFixed(2)}%`)
+const sign = (n) => (n === null || n === undefined ? '' : n >= 0 ? '' : ' pa-perf__v--down')
+
+/** Inline sparkline. Normalised to its own range, so shape is what reads. */
+function Spark({ points, up }) {
+  if (!points || points.length < 2) return null
+  const w = 64
+  const h = 18
+  const lo = Math.min(...points)
+  const hi = Math.max(...points)
+  const span = hi - lo || 1
+  const d = points
+    .map((v, i) => {
+      const x = (i / (points.length - 1)) * w
+      const y = h - ((v - lo) / span) * h
+      return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
+    })
+    .join(' ')
+  return (
+    <svg className="pa-spark" width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true">
+      <path d={d} fill="none" stroke={up ? 'var(--accent)' : 'var(--red)'} strokeWidth="1.5"
+            strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
 const money = (n) => (n === null || n === undefined ? '—' : n.toFixed(2))
 
 function when(iso) {
@@ -86,7 +110,10 @@ export default function MarketBriefing() {
       ) : (
         <>
           <div className="pa-brief__head">
-            <span className="pa-brief__stamp">{when(briefing.generated_at)}</span>
+            <span className="pa-brief__stamp">
+              {when(briefing.generated_at)}
+              {briefing.quotes?.[0]?.as_of ? ` · closes ${briefing.quotes[0].as_of}` : ''}
+            </span>
             {briefing.insight ? null : <Badge tone="neutral">quotes only</Badge>}
           </div>
 
@@ -95,17 +122,52 @@ export default function MarketBriefing() {
           <ul className="pa-quotes">
             {(briefing.quotes ?? []).map((q) => {
               const up = (q.change_p ?? 0) >= 0
+              const p = q.perf ?? {}
               return (
                 <li key={q.symbol} className="pa-quote">
-                  <span className="pa-quote__sym">{q.symbol}</span>
-                  <span className="pa-quote__price">{money(q.close)}</span>
-                  <span className={`pa-quote__chg${up ? '' : ' pa-quote__chg--down'}`}>
-                    {up ? '▲' : '▼'} {pct(q.change_p)}
-                  </span>
+                  <div className="pa-quote__top">
+                    <span className="pa-quote__sym">{q.symbol}</span>
+                    <Spark points={q.spark} up={up} />
+                    <span className="pa-quote__price">{money(q.close)}</span>
+                    <span className={`pa-quote__chg${up ? '' : ' pa-quote__chg--down'}`}>
+                      {up ? '▲' : '▼'} {pct(q.change_p)}
+                    </span>
+                  </div>
+
+                  {(p.w1 !== undefined || q.rsi14 !== null) && (
+                    <div className="pa-perf">
+                      {[['1W', p.w1], ['1M', p.m1], ['YTD', p.ytd]].map(([label, v]) => (
+                        <span className="pa-perf__cell" key={label}>
+                          <span className="pa-perf__k">{label}</span>
+                          <span className={`pa-perf__v${sign(v)}`}>{pct(v)}</span>
+                        </span>
+                      ))}
+                      {q.rsi14 !== null && q.rsi14 !== undefined && (
+                        <span className="pa-perf__cell">
+                          <span className="pa-perf__k">RSI</span>
+                          <span className="pa-perf__v">{q.rsi14.toFixed(0)}</span>
+                        </span>
+                      )}
+                      {q.sma50 && q.close && (
+                        <span className="pa-perf__cell">
+                          <span className="pa-perf__k">50d</span>
+                          <span className={`pa-perf__v${q.close >= q.sma50 ? '' : ' pa-perf__v--down'}`}>
+                            {q.close >= q.sma50 ? 'above' : 'below'}
+                          </span>
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </li>
               )
             })}
           </ul>
+
+          {(briefing.skipped ?? []).length > 0 && (
+            <p className="pa-brief__note" style={{ display: 'block', marginBottom: 'var(--space-4)' }}>
+              No data for {briefing.skipped.join(', ')}
+            </p>
+          )}
 
           {(briefing.headlines ?? []).length > 0 && (
             <>

@@ -10,7 +10,8 @@ create table if not exists market_briefings (
   generated_at  timestamptz not null default now(),
   quotes        jsonb not null,            -- [{symbol, close, change, change_p, ...}]
   headlines     jsonb,                     -- [{title, date, link}]
-  insight       text                       -- filled in later by the AI layer
+  insight       text,                      -- filled in later by the AI layer
+  skipped       jsonb                      -- symbols the plan/quota could not serve
 );
 
 alter table market_briefings enable row level security;
