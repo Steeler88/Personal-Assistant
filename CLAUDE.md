@@ -170,6 +170,9 @@ estimates), Whoop (sleep + recovery, connected and syncing).
   so** — Johnny chose a visible staleness indicator over a cron. The Recovery
   panel and screen show how far behind the newest night is and turn the Sync
   button primary once it matters.
-- **Strain needs a sync before it shows.** `whoop_cycles` is populated from
-  `/v2/cycle`, which the sync only started calling after the table existed, so
-  the column reads `—` until Sync is pressed once.
+- **Strain needs a Whoop reconnect, not just a sync.** `/v2/cycle` requires the
+  `read:cycles` scope. The original connection was authorised without it, so the
+  endpoint 401s on a token that works perfectly for sleep and recovery — adding
+  a scope means going through consent again. `WHOOP_SCOPES` now requests it, and
+  the sync degrades to "no strain" instead of failing, but the stored token only
+  gains the scope when Johnny reconnects.
