@@ -18,6 +18,49 @@ const EMPTY_NIGHT = {
   notes: '',
 }
 
+const cap = (t) => (t ? t[0].toUpperCase() + t.slice(1) : null)
+const yesNo = (v) => (v === null || v === undefined ? null : v ? 'Yes' : 'No')
+
+function morningRecap(v) {
+  return [
+    ['Sleep quality', v.sleep_quality],
+    ['Soreness', v.soreness],
+    ['Notes', v.notes],
+  ]
+}
+
+function nightRecap(v) {
+  const rows = [
+    ['Productivity', v.productivity],
+    ['Finances', cap(v.finances)],
+    ['Stuck to carnivore', yesNo(v.nutrition_ok)],
+  ]
+  if (v.nutrition_ok === false) rows.push(['What went wrong', v.nutrition_issue])
+  rows.push(['Worked out', yesNo(v.fitness_ok)])
+  if (v.fitness_ok === false) rows.push(['What went wrong', v.fitness_issue])
+  rows.push(['Social life', v.social])
+  rows.push(['Notes', v.notes])
+  return rows
+}
+
+function Recap({ rows, onEdit }) {
+  return (
+    <div className="pa-recap">
+      <dl className="pa-recap__list">
+        {rows.map(([label, value], i) => (
+          <div className="pa-recap__row" key={i}>
+            <dt className="pa-recap__label">{label}</dt>
+            <dd className={`pa-recap__value${value === null || value === undefined || value === '' ? ' pa-recap__value--empty' : ''}`}>
+              {value === null || value === undefined || value === '' ? '—' : value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      <Button variant="ghost" onClick={onEdit}>Edit</Button>
+    </div>
+  )
+}
+
 // Compare only the fields we own, so server columns (timestamps) don't read as edits
 const same = (a, b) => Object.keys(a).every((k) => (a[k] ?? '') === (b[k] ?? ''))
 
@@ -35,6 +78,7 @@ export default function JournalToday({ onChange }) {
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(null)
+  const [editing, setEditing] = useState({ morning: false, night: false })
   const [error, setError] = useState(null)
 
   useEffect(() => {
@@ -100,13 +144,22 @@ export default function JournalToday({ onChange }) {
     } else if (which === 'morning') {
       setMorning(payload)
       setSavedMorning(payload)
+      setEditing((e) => ({ ...e, morning: false }))
       onChange?.()
     } else {
       setNight(payload)
       setSavedNight(payload)
+      setEditing((e) => ({ ...e, night: false }))
       onChange?.()
     }
     setSaving(null)
+  }
+
+  function cancelEdit(which) {
+    // Drop anything typed since the last save, then collapse
+    if (which === 'morning') setMorning(savedMorning)
+    else setNight(savedNight)
+    setEditing((e) => ({ ...e, [which]: false }))
   }
 
   if (error === 'missing-table') {
@@ -125,6 +178,10 @@ export default function JournalToday({ onChange }) {
   const nightChanged = !same(night, savedNight)
   const morningSaved = !same(EMPTY_MORNING, savedMorning)
   const nightSaved = !same(EMPTY_NIGHT, savedNight)
+
+  // Collapse to a recap once saved, unless you've asked to edit it
+  const showMorningForm = !morningSaved || editing.morning
+  const showNightForm = !nightSaved || editing.night
 
   const set = (setter) => (key) => (val) => setter((s) => ({ ...s, [key]: val }))
   const setM = set(setMorning)
@@ -161,7 +218,11 @@ export default function JournalToday({ onChange }) {
           {morningChanged && <Badge tone="amber" dot>Unsaved</Badge>}
         </div>
 
-        <div className="pa-fields">
+        {!showMorningForm && (
+          <Recap rows={morningRecap(savedMorning)} onEdit={() => setEditing((e) => ({ ...e, morning: true }))} />
+        )}
+
+        <div className="pa-fields" hidden={!showMorningForm}>
           <Scale label="Sleep quality" value={morning.sleep_quality} onChange={setM('sleep_quality')} />
           <Scale label="Soreness" value={morning.soreness} onChange={setM('soreness')} />
 
@@ -175,11 +236,14 @@ export default function JournalToday({ onChange }) {
             />
           </Field>
 
-          <div>
+          <div className="pa-actions">
             <Button variant="ghost" disabled={loading || !morningChanged || saving === 'morning'}
               onClick={() => save('morning')}>
               {saving === 'morning' ? 'Saving…' : 'Save morning'}
             </Button>
+            {morningSaved && editing.morning && (
+              <Button variant="link" onClick={() => cancelEdit('morning')}>Cancel</Button>
+            )}
           </div>
         </div>
       </section>
@@ -191,7 +255,11 @@ export default function JournalToday({ onChange }) {
           {nightChanged && <Badge tone="amber" dot>Unsaved</Badge>}
         </div>
 
-        <div className="pa-fields">
+        {!showNightForm && (
+          <Recap rows={nightRecap(savedNight)} onEdit={() => setEditing((e) => ({ ...e, night: true }))} />
+        )}
+
+        <div className="pa-fields" hidden={!showNightForm}>
           <Scale label="Productivity" value={night.productivity} onChange={setN('productivity')} />
 
           <Choice
@@ -254,11 +322,14 @@ export default function JournalToday({ onChange }) {
             />
           </Field>
 
-          <div>
+          <div className="pa-actions">
             <Button variant="ghost" disabled={loading || !nightChanged || saving === 'night'}
               onClick={() => save('night')}>
               {saving === 'night' ? 'Saving…' : 'Save night'}
             </Button>
+            {nightSaved && editing.night && (
+              <Button variant="link" onClick={() => cancelEdit('night')}>Cancel</Button>
+            )}
           </div>
         </div>
       </section>

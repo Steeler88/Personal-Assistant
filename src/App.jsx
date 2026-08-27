@@ -18,8 +18,8 @@ export default function App() {
           <JournalToday onChange={bump} />
         </div>
         <div className="pa-col">
-          <Todos onChange={bump} />
           <Calendar onChange={bump} />
+          <Todos onChange={bump} />
         </div>
       </div>
     </PageShell>
