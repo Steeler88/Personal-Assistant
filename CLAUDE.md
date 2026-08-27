@@ -68,11 +68,22 @@ re-run.** Claude does not run them; hand them to Johnny to paste into the
 Supabase SQL editor (`pbcopy < SCHEMA-x.sql` and give him the `/sql/new` link).
 
 Tables: `morning_entries`, `night_entries`, `todos`, `calendar_events`,
-`market_briefings`, `meals`, `whoop_tokens`, `whoop_sleep`, `whoop_recovery`.
+`market_briefings`, `meals`, `whoop_tokens`, `whoop_sleep`, `whoop_recovery`,
+`whoop_cycles`.
 
 Single-user, so RLS is enabled with a permissive `anon` policy everywhere —
 except Whoop tokens, which are AES-256-GCM encrypted before storage because the
 anon key is readable from the bundle and those tokens are account access.
+
+## Daily targets
+
+Around **3000 kcal** and **200g of protein** — ranges to sit near, not lines to
+cross, so `src/lib/targets.js` bands them symmetrically: within 10% is on target,
+within 25% is close, beyond that is off. Overshooting is a miss too.
+
+**A day still being eaten is not judged.** Today shows progress in neutral grey;
+only finished days get a colour. Sleep is not a fixed number — the goal is
+whatever Whoop asked for that night, which already accounts for strain.
 
 ## Conventions that matter
 
@@ -96,6 +107,13 @@ deploy.
 - **`.dk-shell` sets `overflow: hidden`** — popovers must portal to `<body>` with
   fixed positioning or they get clipped (see `DatePicker.jsx`, `TimePicker.jsx`).
 - **Vercel runs UTC** — the browser sends its local date for anything day-stamped.
+- **Whoop's `sleep_performance_percentage` is not sleep ÷ need.** It comes out
+  of their model, and dividing gives a visibly different number — 105% against
+  a stated 95% on 27 Aug, 108% against 82% on the 24th. Both are stored; the app
+  bands against need and keeps Whoop's percentage off the same panel. Don't
+  "reconcile" them, they don't reconcile.
+- **`whoop_sleep.raw` earns its keep** — sleep need was recovered from it with a
+  SQL backfill and no re-sync. Keep storing responses whole.
 - **`vercel dev` caches env at startup** — restart it after adding a variable.
 
 ## EODHD (market data) — free plan
@@ -148,4 +166,10 @@ estimates), Whoop (sleep + recovery, connected and syncing).
 - **Schoolwork, baseball, options** — explicitly deferred.
 - Skipping one occurrence of a recurring event (rained-out practice) isn't built;
   deleting removes the whole series.
-- The Whoop sync button is manual and pulls the last 30 days.
+- The Whoop sync button is manual and pulls the last 30 days. **Deliberately
+  so** — Johnny chose a visible staleness indicator over a cron. The Recovery
+  panel and screen show how far behind the newest night is and turn the Sync
+  button primary once it matters.
+- **Strain needs a sync before it shows.** `whoop_cycles` is populated from
+  `/v2/cycle`, which the sync only started calling after the table existed, so
+  the column reads `—` until Sync is pressed once.

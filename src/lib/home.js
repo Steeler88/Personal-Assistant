@@ -24,13 +24,22 @@ export async function loadHome() {
   const today = todayKey()
   const horizon = addDays(today, HORIZON_DAYS)
 
-  const [morning, night, todos, meals, sleep, recovery, briefing, events] = await Promise.all([
+  const [morning, night, todos, meals, sleep, recovery, cycles, briefing, events] = await Promise.all([
     supabase.from('morning_entries').select('*').eq('entry_date', today).maybeSingle(),
     supabase.from('night_entries').select('*').eq('entry_date', today).maybeSingle(),
     supabase.from('todos').select('*'),
     supabase.from('meals').select('*').eq('eaten_on', today),
-    supabase.from('whoop_sleep').select('*').order('night_of', { ascending: false }).limit(7),
-    supabase.from('whoop_recovery').select('*').order('recorded_on', { ascending: false }).limit(7),
+    // Named columns rather than *: whoop_sleep.raw is a whole API response per
+    // night, and the home screen has no use for it.
+    supabase.from('whoop_sleep')
+      .select('id,night_of,total_sleep_min,sleep_needed_min,performance_pct')
+      .order('night_of', { ascending: false }).limit(7),
+    supabase.from('whoop_recovery')
+      .select('cycle_id,recorded_on,recovery_score,hrv_ms,rhr_bpm')
+      .order('recorded_on', { ascending: false }).limit(7),
+    supabase.from('whoop_cycles')
+      .select('id,recorded_on,strain')
+      .order('recorded_on', { ascending: false }).limit(7),
     supabase.from('market_briefings').select('*').order('briefing_date', { ascending: false })
       .limit(1).maybeSingle(),
     fetchEventRows(today, horizon),
@@ -41,6 +50,9 @@ export async function loadHome() {
     todos: gone(todos),
     nutrition: gone(meals),
     whoop: gone(sleep) || gone(recovery),
+    // Strain arrived later than the rest of Whoop, so its table can be absent
+    // while sleep and recovery are fine.
+    strain: gone(cycles),
     market: gone(briefing),
     calendar: gone(events),
   }
@@ -83,7 +95,7 @@ export async function loadHome() {
     tasks: { all: taskRows },
     schedule: { today: todayItems, upcoming, next: upcoming[0] ?? null },
     nutrition: { meals: mealRows, totals: mealTotals(mealRows) },
-    whoop: { sleep: rowsOf(sleep), recovery: rowsOf(recovery) },
+    whoop: { sleep: rowsOf(sleep), recovery: rowsOf(recovery), cycles: rowsOf(cycles) },
     briefing: briefing.error ? null : briefing.data,
   }
 }

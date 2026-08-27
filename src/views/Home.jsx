@@ -8,7 +8,7 @@ import { loadHome } from '../lib/home'
 import { go } from '../lib/router'
 import { prettyDate, prettyTime, timeOfDay } from '../lib/dates'
 import { MEALS, mealForNow, sortMeals, mealTotals, estimateMacros } from '../lib/meals'
-import { recoveryTone } from '../lib/whoop'
+import { recoveryTone, freshness, sleepTone } from '../lib/whoop'
 import { Check } from '../components/controls'
 import Spark from '../components/Spark'
 
@@ -232,7 +232,9 @@ export default function Home() {
 
   const latestRecovery = whoop.recovery[0] ?? null
   const latestSleep = whoop.sleep[0] ?? null
+  const latestStrain = whoop.cycles?.[0] ?? null
   const recTone = recoveryTone(latestRecovery?.recovery_score)
+  const fresh = freshness(latestSleep?.night_of, today)
 
   const next = schedule.next
   const totals = nutrition.totals
@@ -354,8 +356,10 @@ export default function Home() {
         <Panel
           name="Recovery"
           to="whoop"
-          meta={latestSleep ? prettyDate(latestSleep.night_of) : null}
-          state={recTone}
+          meta={fresh.label}
+          /* Stale data makes the recovery number stale too, so lateness outranks
+             it: an 89% from four days ago should not read as a green morning. */
+          state={fresh.tone === 'ok' ? recTone : fresh.tone}
         >
           {missing.whoop ? (
             <Setup file="SCHEMA-whoop.sql" />
@@ -374,8 +378,23 @@ export default function Home() {
               {latestSleep && (
                 <Stat
                   k="Slept"
-                  v={hhmm(latestSleep.total_sleep_min)}
-                  bar={latestSleep.performance_pct}
+                  v={latestSleep.sleep_needed_min
+                    ? `${hhmm(latestSleep.total_sleep_min)} / ${hhmm(latestSleep.sleep_needed_min)}`
+                    : hhmm(latestSleep.total_sleep_min)}
+                  tone={sleepTone(latestSleep.total_sleep_min, latestSleep.sleep_needed_min)}
+                  bar={latestSleep.sleep_needed_min
+                    ? (latestSleep.total_sleep_min / latestSleep.sleep_needed_min) * 100
+                    : latestSleep.performance_pct}
+                />
+              )}
+              {/* Strain is a magnitude, not a verdict — there is no good or bad
+                  14.2 — so it gets a neutral bar and no banding. */}
+              {latestStrain?.strain !== null && latestStrain?.strain !== undefined && (
+                <Stat
+                  k="Strain"
+                  v={Number(latestStrain.strain).toFixed(1)}
+                  tone="idle"
+                  bar={(Number(latestStrain.strain) / 21) * 100}
                 />
               )}
               {latestRecovery && (
@@ -383,6 +402,9 @@ export default function Home() {
                   <Stat k="HRV" v={`${num(latestRecovery.hrv_ms)} ms`} />
                   <Stat k="Resting HR" v={`${num(latestRecovery.rhr_bpm)} bpm`} />
                 </>
+              )}
+              {fresh.tone !== 'ok' && (
+                <p className="pa-mini__note pa-mini__note--dim">Sync on the recovery screen to catch up.</p>
               )}
             </>
           )}

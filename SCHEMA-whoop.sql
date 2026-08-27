@@ -73,3 +73,46 @@ create policy "single user full access" on whoop_sleep
 drop policy if exists "single user full access" on whoop_recovery;
 create policy "single user full access" on whoop_recovery
   for all to anon using (true) with check (true);
+
+-- ---------------------------------------------------------------------------
+-- Day strain, and sleep need as a column.
+--
+-- Strain is a separate Whoop resource (/v2/cycle) that the original sync never
+-- called, so it needs a table and a re-sync. Sleep need does not: it has been
+-- inside whoop_sleep.raw all along, and the backfill below lifts it out. That
+-- is why `raw` is kept whole.
+-- ---------------------------------------------------------------------------
+
+alter table whoop_sleep add column if not exists sleep_needed_min integer;
+
+-- Whoop's recommendation for that night: a baseline, plus what sleep debt and
+-- recent strain added, minus what a nap already covered. The nap component
+-- arrives already negative, so this is a straight sum.
+update whoop_sleep
+set sleep_needed_min = round((
+        coalesce((raw->'score'->'sleep_needed'->>'baseline_milli')::numeric, 0)
+      + coalesce((raw->'score'->'sleep_needed'->>'need_from_sleep_debt_milli')::numeric, 0)
+      + coalesce((raw->'score'->'sleep_needed'->>'need_from_recent_strain_milli')::numeric, 0)
+      + coalesce((raw->'score'->'sleep_needed'->>'need_from_recent_nap_milli')::numeric, 0)
+    ) / 60000)
+where raw -> 'score' ? 'sleep_needed';
+
+create table if not exists whoop_cycles (
+  id           text primary key,      -- Whoop cycle id; whoop_recovery.cycle_id joins to this
+  recorded_on  date not null,
+  strain       numeric(4,1),          -- 0-21, Whoop's own scale
+  avg_hr_bpm   numeric(5,1),
+  max_hr_bpm   numeric(5,1),
+  kilojoule    numeric(9,1),
+  start_at     timestamptz,
+  end_at       timestamptz,
+  raw          jsonb,
+  synced_at    timestamptz not null default now()
+);
+create index if not exists whoop_cycles_date_idx on whoop_cycles (recorded_on desc);
+
+alter table whoop_cycles enable row level security;
+
+drop policy if exists "single user full access" on whoop_cycles;
+create policy "single user full access" on whoop_cycles
+  for all to anon using (true) with check (true);

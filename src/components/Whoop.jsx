@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { Card, Button, Badge } from '../design-kit'
 import { prettyDate } from '../lib/dates'
-import { recoveryTone } from '../lib/whoop'
+import { todayKey } from '../lib/today'
+import { recoveryTone, freshness, sleepTone } from '../lib/whoop'
 
 const MISSING_TABLE = new Set(['PGRST205', '42P01'])
 
@@ -27,15 +28,17 @@ export default function Whoop() {
   const [status, setStatus] = useState(null)
   const [sleep, setSleep] = useState([])
   const [recovery, setRecovery] = useState([])
+  const [cycles, setCycles] = useState([])
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState(null)
   const [notice, setNotice] = useState(null)
 
   async function loadStored() {
-    const [s, r] = await Promise.all([
+    const [s, r, c] = await Promise.all([
       supabase.from('whoop_sleep').select('*').order('night_of', { ascending: false }).limit(14),
       supabase.from('whoop_recovery').select('*').order('recorded_on', { ascending: false }).limit(14),
+      supabase.from('whoop_cycles').select('*').order('recorded_on', { ascending: false }).limit(14),
     ])
     const err = s.error || r.error
     if (err) {
@@ -44,6 +47,9 @@ export default function Whoop() {
     }
     setSleep(s.data ?? [])
     setRecovery(r.data ?? [])
+    // Strain came later than the rest of Whoop. Its table being absent is a
+    // migration that hasn't been run, not a reason to fail the whole screen.
+    setCycles(c.error ? [] : c.data ?? [])
   }
 
   useEffect(() => {
@@ -75,7 +81,10 @@ export default function Whoop() {
         else if (body.error === 'reconnect') setNotice('The Whoop connection expired. Connect again.')
         else setError(body.error || `Sync failed (${res.status})`)
       } else {
-        setNotice(`Synced ${body.sleep} nights and ${body.recovery} recovery scores.`)
+        setNotice(
+          `Synced ${body.sleep} nights, ${body.recovery} recovery scores` +
+          `${body.cycles ? ` and ${body.cycles} days of strain` : ''}.`
+        )
         await loadStored()
       }
     } catch (err) {
@@ -98,7 +107,10 @@ export default function Whoop() {
 
   const latestSleep = sleep[0] ?? null
   const latestRecovery = recovery[0] ?? null
+  const latestStrain = cycles[0] ?? null
   const connected = status?.connected
+  const fresh = freshness(latestSleep?.night_of, todayKey())
+  const strainOf = (day) => cycles.find((c) => c.recorded_on === day)?.strain
 
   return (
     <Card>
@@ -132,9 +144,26 @@ export default function Whoop() {
               <div className="pa-whoop__stat">
                 <span className="pa-whoop__k">Last night</span>
                 <span className="pa-whoop__v">{hhmm(latestSleep.total_sleep_min)}</span>
-                <Meter value={latestSleep.performance_pct} />
+                <Meter
+                  value={latestSleep.sleep_needed_min
+                    ? (latestSleep.total_sleep_min / latestSleep.sleep_needed_min) * 100
+                    : latestSleep.performance_pct}
+                  tone={sleepTone(latestSleep.total_sleep_min, latestSleep.sleep_needed_min)}
+                />
                 <span className="pa-whoop__sub">
-                  {num(latestSleep.performance_pct)}% performance · {prettyDate(latestSleep.night_of)}
+                  {latestSleep.sleep_needed_min
+                    ? `Whoop wanted ${hhmm(latestSleep.sleep_needed_min)}`
+                    : `${num(latestSleep.performance_pct)}% performance`} · {prettyDate(latestSleep.night_of)}
+                </span>
+              </div>
+            )}
+            {latestStrain?.strain !== null && latestStrain?.strain !== undefined && (
+              <div className="pa-whoop__stat">
+                <span className="pa-whoop__k">Strain</span>
+                <span className="pa-whoop__v">{Number(latestStrain.strain).toFixed(1)}</span>
+                <Meter value={(Number(latestStrain.strain) / 21) * 100} tone="idle" />
+                <span className="pa-whoop__sub">
+                  of 21 · what drove last night&rsquo;s sleep need
                 </span>
               </div>
             )}
@@ -148,11 +177,19 @@ export default function Whoop() {
               <ul className="pa-whoop__list">
                 {sleep.slice(0, 7).map((s) => {
                   const rec = recovery.find((r) => r.recorded_on === s.night_of)
+                  const strain = strainOf(s.night_of)
                   return (
                     <li key={s.id} className="pa-whoop__row">
                       <span className="pa-whoop__date">{prettyDate(s.night_of)}</span>
-                      <span className="pa-whoop__cell">{hhmm(s.total_sleep_min)}</span>
-                      <span className="pa-whoop__cell">{num(s.performance_pct)}%</span>
+                      <span className={`pa-whoop__cell pa-whoop__cell--${sleepTone(s.total_sleep_min, s.sleep_needed_min)}`}>
+                        {hhmm(s.total_sleep_min)}
+                      </span>
+                      <span className="pa-whoop__cell">
+                        {s.sleep_needed_min ? `of ${hhmm(s.sleep_needed_min)}` : '—'}
+                      </span>
+                      <span className="pa-whoop__cell">
+                        {strain === undefined || strain === null ? '—' : `${Number(strain).toFixed(1)} str`}
+                      </span>
                       <span className={`pa-whoop__cell pa-whoop__cell--${rec ? recoveryTone(rec.recovery_score) : 'idle'}`}>
                         {rec ? `${num(rec.recovery_score)}% rec` : '—'}
                       </span>
@@ -166,9 +203,10 @@ export default function Whoop() {
           {sleep.length === 0 && <p className="pa-empty">Connected. Sync to pull your data.</p>}
 
           <div className="pa-actions" style={{ marginTop: 'var(--space-5)' }}>
-            <Button variant="ghost" onClick={sync} disabled={syncing}>
+            <Button variant={fresh.tone === 'ok' ? 'ghost' : 'primary'} onClick={sync} disabled={syncing}>
               {syncing ? 'Syncing…' : 'Sync Whoop'}
             </Button>
+            <span className={`pa-chip pa-chip--${fresh.tone}`}>{fresh.label}</span>
             <Badge tone="accent" dot>connected</Badge>
           </div>
         </>

@@ -108,3 +108,21 @@ export function clock(d = new Date()) {
   const pad = (n) => String(n).padStart(2, '0')
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
+
+/** 'YYYY-MM-DD' -> 'Thursday, August 27'. */
+export function longDateOf(key) {
+  const p = parseKey(key)
+  if (!p) return ''
+  return new Date(p.y, p.m, p.d).toLocaleDateString(undefined, {
+    weekday: 'long', month: 'long', day: 'numeric',
+  })
+}
+
+/** Whole days from `a` to `b`, both 'YYYY-MM-DD'. Negative if b is earlier. */
+export function daysBetween(a, b) {
+  const pa = parseKey(a)
+  const pb = parseKey(b)
+  if (!pa || !pb) return null
+  const ms = new Date(pb.y, pb.m, pb.d) - new Date(pa.y, pa.m, pa.d)
+  return Math.round(ms / 86400000)
+}
