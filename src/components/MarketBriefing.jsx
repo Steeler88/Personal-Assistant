@@ -45,6 +45,7 @@ export default function MarketBriefing() {
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState(null)
+  const [notice, setNotice] = useState(null)
 
   // Read the last saved briefing. Deliberately does NOT touch EODHD — opening
   // the dashboard must never spend quota.
@@ -67,19 +68,25 @@ export default function MarketBriefing() {
     return () => { cancelled = true }
   }, [])
 
-  async function generate() {
+  async function generate(force = false) {
     setGenerating(true)
     setError(null)
+    setNotice(null)
     try {
       const res = await fetch('/api/market-briefing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         // Send our local date; the server runs UTC and would misfile evening briefings
-        body: JSON.stringify({ date: todayKey() }),
+        body: JSON.stringify({ date: todayKey(), force }),
       })
       const body = await res.json()
-      if (!res.ok) setError(body.error || `Request failed (${res.status})`)
-      else setBriefing(body)
+      if (!res.ok) {
+        setError(body.error || `Request failed (${res.status})`)
+      } else {
+        setBriefing(body)
+        // Say so explicitly: identical numbers otherwise look like a broken button
+        if (body.unchanged) setNotice(body.message ?? 'No new market close yet.')
+      }
     } catch (err) {
       setError(String(err?.message ?? err))
     }
@@ -102,6 +109,14 @@ export default function MarketBriefing() {
   return (
     <Card eyebrow="Finances" title="Market Briefing">
       {error && <p style={{ color: 'var(--red)', fontSize: 'var(--text-sm)', marginTop: 0 }}>{error}</p>}
+      {notice && (
+        <p className="pa-brief__notice">
+          {notice}{' '}
+          <button type="button" className="pa-brief__link" onClick={() => generate(true)}>
+            Fetch anyway
+          </button>
+        </p>
+      )}
 
       {loading ? (
         <p className="pa-empty">Loading…</p>
@@ -189,7 +204,7 @@ export default function MarketBriefing() {
       )}
 
       <div className="pa-actions" style={{ marginTop: 'var(--space-5)' }}>
-        <Button variant="primary" onClick={generate} disabled={generating}>
+        <Button variant="primary" onClick={() => generate(false)} disabled={generating}>
           {generating ? 'Fetching…' : briefing ? 'Refresh briefing' : 'Generate briefing'}
         </Button>
         <span className="pa-brief__note">calls the market API</span>

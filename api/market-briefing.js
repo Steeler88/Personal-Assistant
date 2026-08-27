@@ -63,6 +63,40 @@ export default async function handler(req, res) {
 
   try {
     const since = new Date(Date.now() - HISTORY_DAYS * 86400000).toISOString().slice(0, 10)
+    const force = !!(req.body && typeof req.body === 'object' && req.body.force)
+
+    const eodUrl = (sym) =>
+      `https://eodhd.com/api/eod/${sym}?api_token=${key}&fmt=json&period=d&from=${since}`
+
+    // Probe one symbol first. This plan is EOD-only, so between market closes a
+    // refresh returns exactly what we already stored — previously that cost a
+    // full briefing's worth of calls to discover. One call settles it.
+    if (!force) {
+      const probeRes = await fetch(eodUrl(SYMBOLS[0]))
+      if (probeRes.ok) {
+        const probeBars = await probeRes.json()
+        const latest = Array.isArray(probeBars) && probeBars.length
+          ? probeBars[probeBars.length - 1].date
+          : null
+
+        const prevRes = await fetch(
+          `${supabaseUrl}/rest/v1/market_briefings?select=*&order=briefing_date.desc&limit=1`,
+          { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } }
+        )
+        const prevRows = prevRes.ok ? await prevRes.json() : []
+        const prev = Array.isArray(prevRows) ? prevRows[0] : null
+        const storedAsOf = prev?.quotes?.[0]?.as_of ?? null
+
+        if (latest && storedAsOf && latest <= storedAsOf) {
+          return res.status(200).json({
+            ...prev,
+            unchanged: true,
+            latest_close: storedAsOf,
+            message: `No new market close since ${storedAsOf}. US markets close at 4:00 PM ET; EOD data lands a few hours later.`,
+          })
+        }
+      }
+    }
 
     // EOD history rather than real-time: on the free plan the real-time endpoint
     // returns the same closing figures, but a history call also yields the
@@ -70,7 +104,7 @@ export default async function handler(req, res) {
     const [histResults, newsRes] = await Promise.all([
       Promise.all(
         SYMBOLS.map((sym) =>
-          fetch(`https://eodhd.com/api/eod/${sym}?api_token=${key}&fmt=json&period=d&from=${since}`)
+          fetch(eodUrl(sym))
             .then(async (r) => ({ sym, ok: r.ok, status: r.status, body: r.ok ? await r.json() : await r.text() }))
             .catch((e) => ({ sym, ok: false, status: 0, body: String(e?.message ?? e) }))
         )
