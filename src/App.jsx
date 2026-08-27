@@ -18,7 +18,7 @@ export default function App() {
           <JournalToday onChange={bump} />
         </div>
         <div className="pa-col">
-          <Calendar onChange={bump} />
+          <Calendar onChange={bump} refreshKey={version} />
           <Todos onChange={bump} />
         </div>
       </div>

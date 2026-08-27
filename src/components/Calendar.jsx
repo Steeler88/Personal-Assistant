@@ -11,21 +11,36 @@ import { Field } from './controls'
 const MISSING_TABLE = new Set(['PGRST205', '42P01'])
 const TIMES = timeOptions()
 
-// All-day events sort before timed ones, then by clock time.
+// Untimed items (all-day events, then to-dos) sort above timed ones,
+// and timed items sort by clock time.
 function byTime(a, b) {
-  if (!a.start_time && !b.start_time) return a.created_at < b.created_at ? -1 : 1
-  if (!a.start_time) return -1
-  if (!b.start_time) return 1
-  return a.start_time < b.start_time ? -1 : 1
+  if (!a.time && !b.time) {
+    if (a.kind !== b.kind) return a.kind === 'event' ? -1 : 1
+    return (a.sort ?? '') < (b.sort ?? '') ? -1 : 1
+  }
+  if (!a.time) return -1
+  if (!b.time) return 1
+  return a.time < b.time ? -1 : 1
 }
 
-export default function Calendar({ onChange }) {
+const asEvent = (e) => ({
+  kind: 'event', id: e.id, date: e.event_date, time: e.start_time,
+  title: e.title, note: e.note, sort: e.created_at, raw: e,
+})
+
+const asTask = (t) => ({
+  kind: 'todo', id: t.id, date: t.due_date, time: null,
+  title: t.task, note: null, done: t.done, sort: t.task, raw: t,
+})
+
+export default function Calendar({ onChange, refreshKey = 0 }) {
   const today = todayKey()
   const todayParts = parseKey(today)
 
   const [view, setView] = useState({ y: todayParts.y, m: todayParts.m })
   const [selected, setSelected] = useState(today)
   const [events, setEvents] = useState([])
+  const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -41,25 +56,34 @@ export default function Calendar({ onChange }) {
     async function load() {
       setLoading(true)
       const { from, to } = monthBounds(view.y, view.m)
-      const { data, error } = await supabase
-        .from('calendar_events')
-        .select('*')
-        .gte('event_date', from)
-        .lte('event_date', to)
+
+      // Dated to-dos appear on the calendar too. Read them rather than copying
+      // them in, so the to-do list stays the single source of truth.
+      const [ev, td] = await Promise.all([
+        supabase.from('calendar_events').select('*').gte('event_date', from).lte('event_date', to),
+        supabase
+          .from('todos')
+          .select('id,task,due_date,priority,done')
+          .not('due_date', 'is', null)
+          .gte('due_date', from)
+          .lte('due_date', to),
+      ])
 
       if (cancelled) return
-      if (error) {
-        setError(MISSING_TABLE.has(error.code) ? 'missing-table' : error.message)
+      if (ev.error) {
+        setError(MISSING_TABLE.has(ev.error.code) ? 'missing-table' : ev.error.message)
       } else {
         setError(null)
-        setEvents(data)
+        setEvents(ev.data)
+        // A missing todos table is a setup state, not a calendar failure
+        setTasks(td.error ? [] : td.data)
       }
       setLoading(false)
     }
 
     load()
     return () => { cancelled = true }
-  }, [view.y, view.m])
+  }, [view.y, view.m, refreshKey])
 
   function step(delta) {
     setView((v) => {
@@ -126,8 +150,9 @@ export default function Calendar({ onChange }) {
   const total = daysInMonth(view.y, view.m)
   const offset = firstWeekday(view.y, view.m)
 
+  const items = [...events.map(asEvent), ...tasks.map(asTask)]
   const byDay = {}
-  for (const ev of events) (byDay[ev.event_date] ||= []).push(ev)
+  for (const it of items) (byDay[it.date] ||= []).push(it)
 
   const dayEvents = (byDay[selected] || []).slice().sort(byTime)
   const selectedParts = parseKey(selected)
@@ -158,13 +183,16 @@ export default function Calendar({ onChange }) {
               className="pa-month__day"
               aria-pressed={key === selected}
               data-today={key === today ? 'true' : undefined}
-              aria-label={`${MONTHS[view.m]} ${day}${count ? `, ${count} event${count > 1 ? 's' : ''}` : ''}`}
+              aria-label={`${MONTHS[view.m]} ${day}${count ? `, ${count} item${count > 1 ? 's' : ''}` : ''}`}
               onClick={() => setSelected(key)}
             >
               <span className="pa-month__num">{day}</span>
               <span className="pa-month__dots">
-                {Array.from({ length: Math.min(count, 3) }, (_, i) => (
-                  <span key={i} className="pa-month__dot" />
+                {(byDay[key] || []).slice(0, 3).map((it, i) => (
+                  <span
+                    key={i}
+                    className={`pa-month__dot${it.kind === 'todo' ? ' pa-month__dot--task' : ''}${it.done ? ' pa-month__dot--done' : ''}`}
+                  />
                 ))}
               </span>
             </button>
@@ -184,21 +212,31 @@ export default function Calendar({ onChange }) {
           <p className="pa-empty">Nothing scheduled.</p>
         ) : (
           <ul className="pa-events">
-            {dayEvents.map((ev) => (
-              <li key={ev.id} className="pa-event">
-                <span className="pa-event__time">{prettyTime(ev.start_time) || 'All day'}</span>
-                <span className="pa-event__body">
-                  <span className="pa-event__title">{ev.title}</span>
-                  {ev.note && <span className="pa-event__note">{ev.note}</span>}
+            {dayEvents.map((it) => (
+              <li key={`${it.kind}-${it.id}`} className={`pa-event${it.done ? ' pa-event--done' : ''}`}>
+                <span className={`pa-event__time${it.kind === 'todo' ? ' pa-event__time--task' : ''}`}>
+                  {it.kind === 'todo' ? 'Due' : prettyTime(it.time) || 'All day'}
                 </span>
-                <button
-                  type="button"
-                  className="pa-todo__del"
-                  aria-label={`Delete "${ev.title}"`}
-                  onClick={() => remove(ev)}
-                >
-                  ×
-                </button>
+                <span className="pa-event__body">
+                  <span className="pa-event__title">{it.title}</span>
+                  {it.note && <span className="pa-event__note">{it.note}</span>}
+                  {it.kind === 'todo' && (
+                    <span className="pa-event__tag">
+                      task{it.done ? ' · done' : ''}
+                      {it.raw.priority && !it.done ? ` · ${it.raw.priority}` : ''}
+                    </span>
+                  )}
+                </span>
+                {it.kind === 'event' && (
+                  <button
+                    type="button"
+                    className="pa-todo__del"
+                    aria-label={`Delete "${it.title}"`}
+                    onClick={() => remove(it.raw)}
+                  >
+                    ×
+                  </button>
+                )}
               </li>
             ))}
           </ul>

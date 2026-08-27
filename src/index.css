@@ -721,3 +721,26 @@ body {
   align-items: center;
   gap: var(--space-2);
 }
+
+/* To-dos shown on the calendar, distinct from real events */
+.pa-month__dot--task { background: var(--amber); }
+.pa-month__dot--done { opacity: 0.35; }
+.pa-month__day[aria-pressed='true'] .pa-month__dot--task { background: #000; opacity: 0.55; }
+
+.pa-event__time--task { color: var(--amber); }
+
+.pa-event__tag {
+  display: inline-block;
+  margin-top: 3px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.pa-event--done .pa-event__title {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+.pa-event--done .pa-event__time { color: var(--muted); }
