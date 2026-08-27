@@ -26,3 +26,131 @@ body {
   --font-newsreader: 'Newsreader';
   --font-jetbrains: 'JetBrains Mono';
 }
+
+/* ------------------------------------------------------------
+   Form controls the design kit doesn't ship: a 1-10 scale and a
+   segmented choice. Built from the kit's tokens so they match it,
+   rather than editing the vendored design-kit.tsx.
+   ------------------------------------------------------------ */
+
+.pa-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.pa-field__label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.pa-scale {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.pa-scale__btn {
+  flex: 1 1 auto;
+  min-width: 34px;
+  min-height: 38px;
+  padding: 0 2px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--muted-strong);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: background var(--duration) var(--ease),
+              border-color var(--duration) var(--ease),
+              color var(--duration) var(--ease);
+}
+
+.pa-scale__btn:hover {
+  border-color: var(--border-strong);
+  color: var(--fg);
+}
+
+.pa-scale__btn[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #000;
+  font-weight: 600;
+}
+
+.pa-scale__btn:focus-visible,
+.pa-choice__btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.pa-choice {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.pa-choice__btn {
+  min-height: 38px;
+  padding: 0 var(--space-4);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--muted-strong);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--duration) var(--ease),
+              border-color var(--duration) var(--ease),
+              color var(--duration) var(--ease);
+}
+
+.pa-choice__btn:hover {
+  border-color: var(--border-strong);
+  color: var(--fg);
+}
+
+.pa-choice__btn[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #000;
+  font-weight: 600;
+}
+
+/* A "no" answer opens a follow-up; tint it amber so it reads as needing attention */
+.pa-choice__btn--warn[aria-pressed='true'] {
+  background: var(--amber);
+  border-color: var(--amber);
+}
+
+.pa-section + .pa-section {
+  margin-top: var(--space-10);
+  padding-top: var(--space-8);
+  border-top: 1px solid var(--border);
+}
+
+.pa-section__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+
+.pa-section__title {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted-strong);
+}
+
+.pa-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
