@@ -4,6 +4,7 @@ import Summary from './components/Summary'
 import JournalToday from './components/JournalToday'
 import Todos from './components/Todos'
 import Calendar from './components/Calendar'
+import MarketBriefing from './components/MarketBriefing'
 
 export default function App() {
   // Bumped by any card that writes, so the summary strip stays truthful.
@@ -20,6 +21,7 @@ export default function App() {
         <div className="pa-col">
           <Calendar onChange={bump} refreshKey={version} />
           <Todos onChange={bump} />
+          <MarketBriefing />
         </div>
       </div>
     </PageShell>

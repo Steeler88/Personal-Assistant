@@ -837,3 +837,81 @@ body {
   font-size: var(--text-xs);
   color: var(--muted);
 }
+
+/* ---------------- Market briefing ---------------- */
+
+.pa-brief__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.pa-brief__stamp {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.pa-brief__insight {
+  margin: 0 0 var(--space-5);
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: var(--text-lg);
+  line-height: 1.5;
+  color: var(--fg);
+}
+
+.pa-quotes { list-style: none; margin: 0 0 var(--space-5); padding: 0; }
+
+.pa-quote {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: var(--space-4);
+  align-items: baseline;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border);
+}
+.pa-quote:last-child { border-bottom: none; }
+
+.pa-quote__sym {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--fg);
+}
+
+.pa-quote__price {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--muted-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.pa-quote__chg {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  min-width: 78px;
+  text-align: right;
+}
+.pa-quote__chg--down { color: var(--red); }
+
+.pa-heads { list-style: none; margin: 0; padding: 0; }
+
+.pa-head {
+  padding: var(--space-2) 0;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: var(--muted-strong);
+  border-bottom: 1px solid var(--border);
+}
+.pa-head:last-child { border-bottom: none; }
+.pa-head a { color: var(--muted-strong); text-decoration: none; }
+.pa-head a:hover { color: var(--accent); }
+
+.pa-brief__note {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
