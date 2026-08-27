@@ -51,3 +51,18 @@ export function Choice({ label, value, onChange, options }) {
     </Field>
   )
 }
+
+/** Checkbox styled to the kit. */
+export function Check({ checked, onChange, label }) {
+  return (
+    <span className="pa-check">
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} aria-label={label} />
+      <span className="pa-check__box" aria-hidden="true">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20 6 9 17l-5-5" />
+        </svg>
+      </span>
+    </span>
+  )
+}
