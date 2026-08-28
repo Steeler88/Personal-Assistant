@@ -130,6 +130,7 @@ export default function MarketBriefing() {
     else {
       setWatch((list) => [...(list ?? []), symbol])
       setNewSymbol('')
+      setNotice(`${symbol} added. Refresh the briefing to price it.`)
     }
     setChecking(false)
   }
@@ -178,6 +179,12 @@ export default function MarketBriefing() {
       </Card>
     )
   }
+
+  // A ticker added since the last briefing has no quote yet. Adding does not
+  // refresh on its own — that spends a call per ticker against a 20-a-day
+  // allowance — so the row has to say it is waiting rather than just be absent.
+  const priced = new Set((briefing?.quotes ?? []).map((q) => q.symbol))
+  const pending = (watch ?? []).filter((sym) => !priced.has(sym))
 
   return (
     <Card>
@@ -265,6 +272,15 @@ export default function MarketBriefing() {
                 </li>
               )
             })}
+
+            {pending.map((sym) => (
+              <li key={sym} className="pa-quote pa-quote--pending">
+                <div className="pa-quote__top">
+                  <span className="pa-quote__sym">{sym}</span>
+                  <span className="pa-quote__waiting">not priced yet — refresh to include it</span>
+                </div>
+              </li>
+            ))}
           </ul>
 
           {(briefing.skipped ?? []).length > 0 && (
@@ -359,6 +375,11 @@ export default function MarketBriefing() {
         <Button variant="primary" onClick={() => generate(false)} disabled={generating}>
           {generating ? 'Fetching…' : briefing ? 'Refresh briefing' : 'Generate briefing'}
         </Button>
+        {pending.length > 0 && !generating && (
+          <span className="pa-fill pa-fill--attn">
+            {pending.length} not priced
+          </span>
+        )}
         <span className="pa-brief__note">calls the market API</span>
       </div>
     </Card>
