@@ -12,7 +12,26 @@ import { summarise } from './_metrics.js'
 import { pickDiverse } from './_news.js'
 import { generateInsight } from './_insight.js'
 
-const SYMBOLS = ['VOO.US', 'QQQ.US', 'PLTR.US', 'NVDA.US', 'AMZN.US', 'TSLA.US', 'SOXL.US']
+// The watchlist lives in Supabase so it can be edited without a deploy. This
+// is the fallback for a database that has not had SCHEMA-market.sql re-run yet,
+// and for a watchlist someone has emptied — a briefing of nothing is worse than
+// a briefing of the original seven.
+const DEFAULT_SYMBOLS = ['VOO', 'QQQ', 'PLTR', 'NVDA', 'AMZN', 'TSLA', 'SOXL']
+
+/** Bare tickers, as stored; EODHD's ".US" suffix is added at call time. */
+async function watchlist(supabaseUrl, supabaseKey) {
+  try {
+    const r = await fetch(`${supabaseUrl}/rest/v1/watchlist?select=symbol&order=added_at.asc`, {
+      headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
+    })
+    if (!r.ok) return DEFAULT_SYMBOLS
+    const rows = await r.json()
+    const symbols = Array.isArray(rows) ? rows.map((x) => x.symbol).filter(Boolean) : []
+    return symbols.length ? symbols : DEFAULT_SYMBOLS
+  } catch {
+    return DEFAULT_SYMBOLS
+  }
+}
 
 // Unfiltered market news, not one symbol's feed: asking for NVDA's news
 // returned five Nvidia stories. Over-fetch, then thin it out.
@@ -83,6 +102,8 @@ export default async function handler(req, res) {
     )
     const prevRows = prevRes.ok ? await prevRes.json() : []
     const prev = Array.isArray(prevRows) ? prevRows[0] : null
+
+    const SYMBOLS = (await watchlist(supabaseUrl, supabaseKey)).map((sym) => `${sym}.US`)
 
     // Live quotes are the point of the button, so always fetch them. They also
     // carry previousClose, which gives today's move without any EOD call.

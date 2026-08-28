@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { postJson } from '../lib/api'
 import { todayKey } from '../lib/today'
 import { Card, Button, Badge } from '../design-kit'
 
@@ -61,6 +62,11 @@ function when(iso) {
 
 export default function MarketBriefing() {
   const [briefing, setBriefing] = useState(null)
+  const [watch, setWatch] = useState(null)      // null until loaded; [] is a real empty list
+  const [showWatch, setShowWatch] = useState(false)
+  const [newSymbol, setNewSymbol] = useState('')
+  const [checking, setChecking] = useState(false)
+  const [watchError, setWatchError] = useState(null)
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState(null)
@@ -87,28 +93,75 @@ export default function MarketBriefing() {
     return () => { cancelled = true }
   }, [])
 
+  useEffect(() => {
+    let cancelled = false
+    supabase.from('watchlist').select('symbol').order('added_at', { ascending: true })
+      .then(({ data, error }) => {
+        if (cancelled) return
+        // A missing table is a migration not yet run, not a failure worth shouting about
+        setWatch(error ? null : (data ?? []).map((r) => r.symbol))
+      })
+    return () => { cancelled = true }
+  }, [])
+
+  async function addSymbol(e) {
+    e?.preventDefault()
+    const symbol = newSymbol.trim().toUpperCase()
+    if (!symbol) return
+
+    if (watch?.includes(symbol)) {
+      setWatchError(`${symbol} is already on the list.`)
+      return
+    }
+
+    setChecking(true)
+    setWatchError(null)
+    // Prove EODHD can price it before it goes in, or the briefing will just
+    // skip it every day with no explanation.
+    const checked = await postJson('/api/check-symbol', { symbol })
+    if (!checked.ok) {
+      setWatchError(checked.error)
+      setChecking(false)
+      return
+    }
+
+    const { error } = await supabase.from('watchlist').insert({ symbol })
+    if (error) setWatchError(error.message)
+    else {
+      setWatch((list) => [...(list ?? []), symbol])
+      setNewSymbol('')
+    }
+    setChecking(false)
+  }
+
+  async function removeSymbol(symbol) {
+    const prev = watch
+    setWatch((list) => (list ?? []).filter((s) => s !== symbol))
+    const { error } = await supabase.from('watchlist').delete().eq('symbol', symbol)
+    if (error) {
+      setWatchError(error.message)
+      setWatch(prev)
+    }
+  }
+
   async function generate(force = false) {
     setGenerating(true)
     setError(null)
     setNotice(null)
-    try {
-      const res = await fetch('/api/market-briefing', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        // Send our local date; the server runs UTC and would misfile evening briefings
-        body: JSON.stringify({ date: todayKey(), force }),
+    {
+      // Send our local date; the server runs UTC and would misfile evening briefings
+      const { ok, body, error: failed } = await postJson('/api/market-briefing', {
+        date: todayKey(),
+        force,
       })
-      const body = await res.json()
-      if (!res.ok) {
-        setError(body.error || `Request failed (${res.status})`)
+      if (!ok) {
+        setError(failed)
       } else {
         setBriefing(body)
         // Say so explicitly: identical numbers otherwise look like a broken button
         if (body.unchanged) setNotice(body.message ?? 'No new market close yet.')
         else if (body.insight_error) setNotice(insightMessage(body.insight_error))
       }
-    } catch (err) {
-      setError(String(err?.message ?? err))
     }
     setGenerating(false)
   }
@@ -160,7 +213,9 @@ export default function MarketBriefing() {
           {briefing.insight && <p className="pa-brief__insight">{briefing.insight}</p>}
 
           <ul className="pa-quotes">
-            {(briefing.quotes ?? []).map((q) => {
+            {(briefing.quotes ?? [])
+              .filter((q) => !watch || watch.length === 0 || watch.includes(q.symbol))
+              .map((q) => {
               const up = (q.change_p ?? 0) >= 0
               const p = q.perf ?? {}
               return (
@@ -236,6 +291,69 @@ export default function MarketBriefing() {
           )}
         </>
       )}
+
+      <button
+        type="button"
+        className="pa-disclose"
+        aria-expanded={showWatch}
+        onClick={() => setShowWatch((v) => !v)}
+      >
+        <span className="pa-disclose__mark" aria-hidden="true">{showWatch ? '−' : '+'}</span>
+        Watchlist
+        <span className="pa-disclose__count">
+          {watch === null ? 'unavailable' : `${watch.length} tickers`}
+        </span>
+      </button>
+
+      <div hidden={!showWatch}>
+        {watch === null ? (
+          <p className="pa-mini__note">
+            The <code>watchlist</code> table doesn’t exist yet. Re-run{' '}
+            <code>SCHEMA-market.sql</code> in the Supabase SQL editor, then reload.
+          </p>
+        ) : (
+          <>
+            {watchError && <p className="pa-brief__notice">{watchError}</p>}
+
+            <ul className="pa-tickers">
+              {watch.map((sym) => (
+                <li key={sym} className="pa-ticker">
+                  {sym}
+                  <button
+                    type="button"
+                    className="pa-ticker__del"
+                    aria-label={`Remove ${sym} from the watchlist`}
+                    onClick={() => removeSymbol(sym)}
+                  >
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
+
+            <form className="pa-quick" onSubmit={addSymbol}>
+              <input
+                className="pa-quick__input"
+                placeholder="Add a ticker, e.g. MSFT"
+                aria-label="Add a ticker"
+                value={newSymbol}
+                maxLength={12}
+                onChange={(e) => setNewSymbol(e.target.value.toUpperCase())}
+              />
+              <button className="pa-quick__btn" type="submit" disabled={checking || !newSymbol.trim()}>
+                {checking ? 'checking…' : 'Add'}
+              </button>
+            </form>
+
+            {/* The allowance is 20 calls a day, so the size of this list is a
+                real cost rather than a preference. */}
+            <p className="pa-mini__note pa-mini__note--dim">
+              {watch.length} tickers · about {watch.length} calls per refresh,
+              {' '}{watch.length * 2} on the day’s first. Checking a new ticker costs one more.
+            </p>
+          </>
+        )}
+      </div>
 
       <div className="pa-actions" style={{ marginTop: 'var(--space-5)' }}>
         <Button variant="primary" onClick={() => generate(false)} disabled={generating}>

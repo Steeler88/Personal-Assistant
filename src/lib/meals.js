@@ -3,6 +3,7 @@
  * entry you typed. */
 
 import { supabase } from './supabase'
+import { postJson } from './api'
 
 export const MEALS = [
   { value: 'breakfast', label: 'Breakfast' },
@@ -63,13 +64,11 @@ export function mealForNow(d = new Date()) {
  *  applied, or an error string — never throws. */
 export async function estimateMacros(row) {
   try {
-    const res = await fetch('/api/estimate-macros', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ description: row.description, meal: row.meal }),
+    const { ok, body, error } = await postJson('/api/estimate-macros', {
+      description: row.description,
+      meal: row.meal,
     })
-    const body = await res.json()
-    if (!res.ok) return { error: body.error || `Estimate failed (${res.status})` }
+    if (!ok) return { error }
 
     const patch = {
       calories: body.calories,
@@ -81,8 +80,8 @@ export async function estimateMacros(row) {
       estimated_at: new Date().toISOString(),
     }
 
-    const { error } = await supabase.from('meals').update(patch).eq('id', row.id)
-    if (error) return { error: error.message }
+    const { error: saveFailed } = await supabase.from('meals').update(patch).eq('id', row.id)
+    if (saveFailed) return { error: saveFailed.message }
     return { patch }
   } catch (err) {
     return { error: String(err?.message ?? err) }

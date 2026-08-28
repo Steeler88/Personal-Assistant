@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { getJson, postJson } from '../lib/api'
 import { Card, Button, Badge } from '../design-kit'
 import { prettyDate } from '../lib/dates'
 import { todayKey } from '../lib/today'
@@ -60,13 +61,8 @@ export default function Whoop() {
   useEffect(() => {
     let cancelled = false
     async function init() {
-      try {
-        const res = await fetch('/api/whoop/status')
-        const body = await res.json()
-        if (!cancelled) setStatus(body)
-      } catch {
-        if (!cancelled) setStatus({ connected: false })
-      }
+      const { ok, body } = await getJson('/api/whoop/status')
+      if (!cancelled) setStatus(ok ? body : { connected: false })
       if (!cancelled) await loadStored()
       if (!cancelled) setLoading(false)
     }
@@ -78,13 +74,12 @@ export default function Whoop() {
     setSyncing(true)
     setError(null)
     setNotice(null)
-    try {
-      const res = await fetch('/api/whoop/sync', { method: 'POST' })
-      const body = await res.json()
-      if (!res.ok) {
-        if (body.error === 'not-connected') setNotice('Whoop isn’t connected yet.')
-        else if (body.error === 'reconnect') setNotice('The Whoop connection expired. Connect again.')
-        else setError(body.error || `Sync failed (${res.status})`)
+    {
+      const { ok, body, error: failed } = await postJson('/api/whoop/sync')
+      if (!ok) {
+        if (body?.error === 'not-connected') setNotice('Whoop isn’t connected yet.')
+        else if (body?.error === 'reconnect') setNotice('The Whoop connection expired. Connect again.')
+        else setError(failed)
       } else {
         const parts = [`${body.sleep} nights`, `${body.recovery} recovery scores`]
         if (body.cycles) parts.push(`${body.cycles} days of strain`)
@@ -92,8 +87,6 @@ export default function Whoop() {
         setStrainBlocked(body.cycle_error === 'reconnect-for-strain')
         await loadStored()
       }
-    } catch (err) {
-      setError(String(err?.message ?? err))
     }
     setSyncing(false)
   }

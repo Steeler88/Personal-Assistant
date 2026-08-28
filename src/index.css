@@ -2230,3 +2230,40 @@ body {
   border-left: 3px solid transparent;
   padding-left: var(--space-3);
 }
+
+/* ---------------- Instrument: watchlist ---------------- */
+
+.pa-tickers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  list-style: none;
+  margin: 0 0 var(--space-3);
+  padding: 0;
+}
+
+.pa-ticker {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 4px var(--space-2) 4px var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--t-label);
+  letter-spacing: 0.1em;
+  color: var(--fg);
+}
+
+.pa-ticker__del {
+  background: none;
+  border: 0;
+  padding: 0 2px;
+  font: inherit;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color var(--duration) var(--ease);
+}
+.pa-ticker__del:hover { color: var(--bad); }
+.pa-ticker__del:focus-visible { outline: 2px solid var(--ui); outline-offset: 2px; }
