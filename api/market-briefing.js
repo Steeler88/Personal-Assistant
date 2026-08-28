@@ -139,25 +139,46 @@ export default async function handler(req, res) {
 
     // History only shifts after a close, so pull it once a day rather than on
     // every refresh. That keeps an intraday refresh to one call per symbol.
-    const contextIsFresh = !force && prev?.eod_fetched_on === today && Array.isArray(prev?.quotes)
-    let context = contextIsFresh ? prev.quotes : null
-    let failures = []
-    let eodFetchedOn = contextIsFresh ? prev.eod_fetched_on : today
+    //
+    // Cached per symbol rather than all-or-nothing. Treating the day's cache as
+    // complete meant a ticker added after the first briefing was never in it,
+    // so it stayed unpriced until the next day — while still costing a live
+    // call every refresh, because the live fetch asked for it and the merge
+    // then dropped it for having no context.
+    const bare = SYMBOLS.map((sym) => sym.replace('.US', ''))
+    const cacheUsable = !force && prev?.eod_fetched_on === today && Array.isArray(prev?.quotes)
 
-    if (!context) {
+    // Symbols taken off the watchlist drop out here rather than lingering in
+    // every future briefing.
+    const cached = cacheUsable ? prev.quotes.filter((q) => bare.includes(q.symbol)) : []
+    const covered = new Set(cached.map((q) => q.symbol))
+    const needHistory = SYMBOLS.filter((sym) => !covered.has(sym.replace('.US', '')))
+
+    let failures = []
+    let fetched = []
+    const eodFetchedOn = today
+
+    if (needHistory.length) {
       const histResults = await Promise.all(
-        SYMBOLS.map((sym) =>
+        needHistory.map((sym) =>
           fetch(eodUrl(sym))
             .then(async (r) => ({ sym, ok: r.ok, status: r.status, body: r.ok ? await r.json() : await r.text() }))
             .catch((e) => ({ sym, ok: false, status: 0, body: String(e?.message ?? e) }))
         )
       )
       failures = histResults.filter((r) => !r.ok)
-      context = histResults
+      fetched = histResults
         .filter((r) => r.ok && Array.isArray(r.body))
         .map((r) => summarise(r.sym, r.body))
         .filter(Boolean)
     }
+
+    // Back into watchlist order, so the list does not reshuffle when one
+    // symbol happens to come from the cache and another from a fresh fetch.
+    const order = new Map(bare.map((sym, i) => [sym, i]))
+    const context = [...cached, ...fetched].sort(
+      (a, b) => (order.get(a.symbol) ?? 999) - (order.get(b.symbol) ?? 999)
+    )
 
     // Merge the live figure onto each symbol's context. Prefer live for today's
     // move; fall back to the EOD comparison outside market hours.
