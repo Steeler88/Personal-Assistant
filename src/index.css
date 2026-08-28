@@ -2157,3 +2157,76 @@ body {
   color: var(--muted);
   letter-spacing: 0.1em;
 }
+
+/* ---------------- Instrument: a bigger calendar ---------------- */
+
+/* The month grid is the point of this screen, so it gets the room. */
+.pa-app .pa-month__day {
+  min-height: 74px;
+  gap: 5px;
+  padding: var(--space-2);
+  justify-content: flex-start;
+  font-size: var(--t-value);
+}
+
+.pa-app .pa-month__num { line-height: 1.1; }
+
+.pa-app .pa-month__grid { gap: 5px; }
+
+.pa-app .pa-month__dow {
+  font-size: var(--t-label);
+  padding-bottom: var(--space-2);
+}
+
+/* Four dots, big enough to tell apart by colour at a glance. */
+.pa-app .pa-month__dots {
+  gap: 3px;
+  height: 7px;
+  margin-top: auto;
+}
+.pa-app .pa-month__dot {
+  width: 7px;
+  height: 7px;
+}
+
+/* A recurring event's colour, carried down the edge of its row. The title sits
+   right beside it — the colour never has to be decoded alone. */
+.pa-event {
+  border-left: 3px solid transparent;
+  padding-left: 0;
+  transition: padding-left var(--duration) var(--ease);
+}
+.pa-event--tinted { padding-left: var(--space-3); }
+
+/* The legend is the agenda itself, so the grid's colours always have a key
+   one click away. */
+.pa-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-3) 0 0;
+  margin-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.pa-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: var(--t-label);
+  color: var(--muted-strong);
+}
+
+.pa-legend__swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* The same edge colour the calendar uses, so a class is recognisable in both. */
+.pa-mini__row--tinted {
+  border-left: 3px solid transparent;
+  padding-left: var(--space-3);
+}

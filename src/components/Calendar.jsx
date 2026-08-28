@@ -5,7 +5,8 @@ import {
   toKey, parseKey, daysInMonth, firstWeekday, monthBounds,
   prettyTime, MONTHS, WEEKDAYS, WEEKDAY_NAMES,
 } from '../lib/dates'
-import { expand, asTask, byTime, fetchEventRows } from '../lib/events'
+import { expand, asTask, byTime, fetchEventRows, fetchSeries } from '../lib/events'
+import { seriesColors, colorOf } from '../lib/eventColors'
 import { Card, Button, Input, Textarea } from '../design-kit'
 import { Field } from './controls'
 import DatePicker from './DatePicker'
@@ -28,8 +29,21 @@ export default function Calendar({ onChange, refreshKey = 0 }) {
   const [time, setTime] = useState('')
   const [note, setNote] = useState('')
   const [adding, setAdding] = useState(false)
+  const [colors, setColors] = useState(() => new Map())
+  const [showAdd, setShowAdd] = useState(false)
+  const [editing, setEditing] = useState(null)
+  const [draft, setDraft] = useState({ title: '', time: '', note: '' })
+  const [savingEdit, setSavingEdit] = useState(false)
   const [repeatDays, setRepeatDays] = useState([])
   const [repeatUntil, setRepeatUntil] = useState('')
+
+  // Every series, once. Reading these off the visible month would give a class
+  // one colour in August and another in September.
+  useEffect(() => {
+    let cancelled = false
+    fetchSeries().then(({ rows }) => { if (!cancelled) setColors(seriesColors(rows)) })
+    return () => { cancelled = true }
+  }, [refreshKey])
 
   // Refetch whenever the visible month changes
   useEffect(() => {
@@ -109,6 +123,29 @@ export default function Calendar({ onChange, refreshKey = 0 }) {
     setAdding(false)
   }
 
+  function startEdit(row) {
+    setEditing(row.id)
+    setDraft({ title: row.title, time: row.start_time ?? '', note: row.note ?? '' })
+  }
+
+  async function saveEdit(row) {
+    const title = draft.title.trim()
+    if (!title) return
+
+    setSavingEdit(true)
+    const patch = { title, start_time: draft.time || null, note: draft.note.trim() || null }
+    const { error } = await supabase.from('calendar_events').update(patch).eq('id', row.id)
+
+    if (error) {
+      setError(error.message)
+    } else {
+      setEvents((list) => list.map((e) => (e.id === row.id ? { ...e, ...patch } : e)))
+      setEditing(null)
+      onChange?.()
+    }
+    setSavingEdit(false)
+  }
+
   async function remove(row) {
     const prev = events
     setEvents((list) => list.filter((x) => x.id !== row.id))
@@ -151,6 +188,17 @@ export default function Calendar({ onChange, refreshKey = 0 }) {
     <Card>
       {error && <p style={{ color: 'var(--red)', fontSize: 'var(--text-sm)', marginTop: 0 }}>{error}</p>}
 
+      {colors.size > 0 && (
+        <ul className="pa-legend">
+          {[...colors.entries()].map(([title, tint]) => (
+            <li key={title} className="pa-legend__item">
+              <span className="pa-legend__swatch" style={{ background: tint }} aria-hidden="true" />
+              {title}
+            </li>
+          ))}
+        </ul>
+      )}
+
       <div className="pa-cal2">
         <div className="pa-cal2__month">
           <div className="pa-month__head">
@@ -177,12 +225,16 @@ export default function Calendar({ onChange, refreshKey = 0 }) {
                 >
                   <span className="pa-month__num">{day}</span>
                   <span className="pa-month__dots">
-                    {(byDay[key] || []).slice(0, 3).map((it, i) => (
-                      <span
-                        key={i}
-                        className={`pa-month__dot${it.kind === 'todo' ? ' pa-month__dot--task' : ''}${it.done ? ' pa-month__dot--done' : ''}`}
-                      />
-                    ))}
+                    {(byDay[key] || []).slice(0, 4).map((it, i) => {
+                      const tint = colorOf(colors, it)
+                      return (
+                        <span
+                          key={i}
+                          className={`pa-month__dot${it.kind === 'todo' ? ' pa-month__dot--task' : ''}${it.done ? ' pa-month__dot--done' : ''}`}
+                          style={tint ? { background: tint } : undefined}
+                        />
+                      )
+                    })}
                   </span>
                 </button>
               )
@@ -203,10 +255,45 @@ export default function Calendar({ onChange, refreshKey = 0 }) {
           ) : (
             <ul className="pa-events">
               {dayEvents.map((it) => (
-                <li key={`${it.kind}-${it.id}-${it.date}`} className={`pa-event${it.done ? ' pa-event--done' : ''}`}>
+                <li
+                  key={`${it.kind}-${it.id}-${it.date}`}
+                  className={`pa-event${it.done ? ' pa-event--done' : ''}${colorOf(colors, it) ? ' pa-event--tinted' : ''}`}
+                  style={colorOf(colors, it) ? { borderLeftColor: colorOf(colors, it) } : undefined}
+                >
                   <span className={`pa-event__time${it.kind === 'todo' ? ' pa-event__time--task' : ''}`}>
                     {it.kind === 'todo' ? 'Due' : prettyTime(it.time) || 'All day'}
                   </span>
+                  {editing === it.id && it.kind === 'event' ? (
+                    <span className="pa-event__body">
+                      <input
+                        className="pa-quick__input"
+                        aria-label="Event title"
+                        autoFocus
+                        value={draft.title}
+                        onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape') setEditing(null)
+                          if (e.key === 'Enter') saveEdit(it.raw)
+                        }}
+                      />
+                      <span className="pa-meal__edits">
+                        <TimePicker label="" value={draft.time} onChange={(v) => setDraft((d) => ({ ...d, time: v }))} />
+                        <button type="button" className="pa-quick__btn" disabled={savingEdit || !draft.title.trim()}
+                                onClick={() => saveEdit(it.raw)}>{savingEdit ? '…' : 'Save'}</button>
+                        <button type="button" className="pa-brief__link" onClick={() => setEditing(null)}>Cancel</button>
+                      </span>
+                      <input
+                        className="pa-quick__input"
+                        aria-label="Note"
+                        placeholder="Note"
+                        value={draft.note}
+                        onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))}
+                      />
+                      {it.repeats && (
+                        <span className="pa-event__tag">Changes every occurrence in this series</span>
+                      )}
+                    </span>
+                  ) : (
                   <span className="pa-event__body">
                     <span className="pa-event__title">{it.title}</span>
                     {it.note && <span className="pa-event__note">{it.note}</span>}
@@ -222,23 +309,46 @@ export default function Calendar({ onChange, refreshKey = 0 }) {
                       </span>
                     )}
                   </span>
+                  )}
                   {it.kind === 'event' && (
-                    <button
-                      type="button"
-                      className="pa-todo__del"
-                      aria-label={it.repeats ? `Delete the whole "${it.title}" series` : `Delete "${it.title}"`}
-                      title={it.repeats ? 'Deletes every occurrence in this series' : 'Delete'}
-                      onClick={() => remove(it.raw)}
-                    >
-                      ×
-                    </button>
+                    <span className="pa-meal__actions">
+                      <button
+                        type="button"
+                        className="pa-meal__edit"
+                        aria-label={it.repeats ? `Edit the whole "${it.title}" series` : `Edit "${it.title}"`}
+                        title={it.repeats ? 'Edits every occurrence in this series' : 'Edit'}
+                        onClick={() => startEdit(it.raw)}
+                      >
+                        edit
+                      </button>
+                      <button
+                        type="button"
+                        className="pa-todo__del"
+                        aria-label={it.repeats ? `Delete the whole "${it.title}" series` : `Delete "${it.title}"`}
+                        title={it.repeats ? 'Deletes every occurrence in this series' : 'Delete'}
+                        onClick={() => remove(it.raw)}
+                      >
+                        ×
+                      </button>
+                    </span>
                   )}
                 </li>
               ))}
             </ul>
           )}
 
-          <form className="pa-day__add" onSubmit={add}>
+          <button
+            type="button"
+            className="pa-disclose"
+            aria-expanded={showAdd}
+            onClick={() => setShowAdd((v) => !v)}
+          >
+            <span className="pa-disclose__mark" aria-hidden="true">{showAdd ? '−' : '+'}</span>
+            Add an event
+            <span className="pa-disclose__count">{selectedLabel}</span>
+          </button>
+
+          <form className="pa-day__add" onSubmit={add} hidden={!showAdd}>
             <Input
               name="event-title"
               label={`Add to ${selectedLabel}`}

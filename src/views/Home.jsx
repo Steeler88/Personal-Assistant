@@ -6,7 +6,8 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { loadHome } from '../lib/home'
 import { go } from '../lib/router'
-import { prettyDate, prettyTime, timeOfDay } from '../lib/dates'
+import { prettyDate, prettyTime, timeOfDay, relativeDay } from '../lib/dates'
+import { seriesColors, colorOf } from '../lib/eventColors'
 import { MEALS, mealForNow, sortMeals, mealTotals, estimateMacros, mealItems, itemLine } from '../lib/meals'
 import { recoveryTone, freshness, sleepTone, sleepPct } from '../lib/whoop'
 import { thirds, invertedThirds } from '../lib/bands'
@@ -242,6 +243,7 @@ export default function Home() {
   const fresh = freshness(latestSleep?.night_of, today)
 
   const next = schedule.next
+  const eventColors = seriesColors(schedule.series ?? [])
   const totals = nutrition.totals
 
   return (
@@ -284,7 +286,7 @@ export default function Home() {
           </span>
           <span className="pa-readout__s">
             {next
-              ? `${prettyDate(next.date)} · ${next.kind === 'todo' ? 'task due' : prettyTime(next.time) ?? 'all day'}`
+              ? `${relativeDay(next.date, today)} · ${next.kind === 'todo' ? 'task due' : prettyTime(next.time) ?? 'all day'}`
               : `${timeOfDay()} · nothing on`}
           </span>
         </div>
@@ -304,14 +306,16 @@ export default function Home() {
               {[...schedule.today, ...schedule.upcoming.filter((u) => u.date !== today)]
                 .slice(0, 7)
                 .map((it) => (
-                  <li key={`${it.kind}-${it.id}-${it.date}`} className="pa-mini__row">
+                  <li
+                    key={`${it.kind}-${it.id}-${it.date}`}
+                    className={`pa-mini__row${colorOf(eventColors, it) ? ' pa-mini__row--tinted' : ''}`}
+                    style={colorOf(eventColors, it) ? { borderLeftColor: colorOf(eventColors, it) } : undefined}
+                  >
                     <span className={`pa-mini__when${it.kind === 'todo' ? ' pa-mini__when--task' : ''}`}>
                       {it.kind === 'todo' ? 'Due' : prettyTime(it.time) ?? 'All day'}
                     </span>
                     <span className="pa-mini__title">{it.title}</span>
-                    <span className="pa-mini__tag">
-                      {it.date === today ? 'today' : prettyDate(it.date)}
-                    </span>
+                    <span className="pa-mini__tag">{relativeDay(it.date, today)}</span>
                   </li>
                 ))}
             </ul>
@@ -342,7 +346,7 @@ export default function Home() {
                     </span>
                   )}
                   {t.due_date && t.due_date >= today && (
-                    <span className="pa-mini__tag">{prettyDate(t.due_date)}</span>
+                    <span className="pa-mini__tag">{relativeDay(t.due_date, today)}</span>
                   )}
                 </li>
               ))}

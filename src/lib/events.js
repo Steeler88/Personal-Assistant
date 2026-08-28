@@ -69,3 +69,17 @@ export async function fetchEventRows(from, to) {
   if (error) return { rows: [], error }
   return { rows: [...oneOff.data, ...series.data], error: null }
 }
+
+/**
+ * Every recurring series, regardless of the window being shown. Colour has to
+ * be the same on the calendar and on the home summary, and those two read
+ * different date ranges — deriving the map from whatever happened to be
+ * fetched would give a class one colour on one screen and another elsewhere.
+ */
+export async function fetchSeries() {
+  const { data, error } = await supabase
+    .from('calendar_events')
+    .select('id,title,created_at,repeat_weekdays')
+    .not('repeat_weekdays', 'is', null)
+  return { rows: error ? [] : data ?? [], error: error ?? null }
+}

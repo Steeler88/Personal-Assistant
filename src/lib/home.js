@@ -8,7 +8,7 @@
 import { supabase } from './supabase'
 import { todayKey } from './today'
 import { addDays, clock } from './dates'
-import { fetchEventRows, expand, asTask, byTime } from './events'
+import { fetchEventRows, fetchSeries, expand, asTask, byTime } from './events'
 import { sortMeals, mealTotals } from './meals'
 
 const MISSING_TABLE = new Set(['PGRST205', '42P01'])
@@ -24,7 +24,7 @@ export async function loadHome() {
   const today = todayKey()
   const horizon = addDays(today, HORIZON_DAYS)
 
-  const [morning, night, todos, meals, sleep, recovery, cycles, briefing, events] = await Promise.all([
+  const [morning, night, todos, meals, sleep, recovery, cycles, briefing, events, series] = await Promise.all([
     supabase.from('morning_entries').select('*').eq('entry_date', today).maybeSingle(),
     supabase.from('night_entries').select('*').eq('entry_date', today).maybeSingle(),
     supabase.from('todos').select('*'),
@@ -43,6 +43,9 @@ export async function loadHome() {
     supabase.from('market_briefings').select('*').order('briefing_date', { ascending: false })
       .limit(1).maybeSingle(),
     fetchEventRows(today, horizon),
+    // Series rows regardless of window, so a class is the same colour here as
+    // it is on the calendar.
+    fetchSeries(),
   ])
 
   const missing = {
@@ -93,7 +96,7 @@ export async function loadHome() {
     // Counts are derived on the home screen instead of here: ticking a task off
     // has to move them, and a number computed once at load can't.
     tasks: { all: taskRows },
-    schedule: { today: todayItems, upcoming, next: upcoming[0] ?? null },
+    schedule: { today: todayItems, upcoming, next: upcoming[0] ?? null, series: series.rows },
     nutrition: { meals: mealRows, totals: mealTotals(mealRows) },
     whoop: { sleep: rowsOf(sleep), recovery: rowsOf(recovery), cycles: rowsOf(cycles) },
     briefing: briefing.error ? null : briefing.data,

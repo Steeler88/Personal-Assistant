@@ -126,3 +126,20 @@ export function daysBetween(a, b) {
   const ms = new Date(pb.y, pb.m, pb.d) - new Date(pa.y, pa.m, pa.d)
   return Math.round(ms / 86400000)
 }
+
+/**
+ * How far off a day is, in the words you would use: today, tomorrow, then the
+ * weekday for the coming week, and only past that an actual date. A date is
+ * the least useful of the three for anything imminent.
+ */
+export function relativeDay(key, today) {
+  const diff = daysBetween(today, key)
+  if (diff === null) return prettyDate(key)
+  if (diff === 0) return 'Today'
+  if (diff === 1) return 'Tomorrow'
+  if (diff > 1 && diff < 7) {
+    const p = parseKey(key)
+    return new Date(p.y, p.m, p.d).toLocaleDateString(undefined, { weekday: 'long' })
+  }
+  return prettyDate(key)
+}
