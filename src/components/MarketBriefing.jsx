@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { postJson } from '../lib/api'
+import Spark from './Spark'
 import { todayKey } from '../lib/today'
 import { Card, Button, Badge } from '../design-kit'
 
@@ -18,28 +19,6 @@ function insightMessage(code) {
 const pct = (n) => (n === null || n === undefined ? '—' : `${n > 0 ? '+' : ''}${n.toFixed(2)}%`)
 const sign = (n) => (n === null || n === undefined ? '' : n >= 0 ? '' : ' pa-perf__v--down')
 
-/** Inline sparkline. Normalised to its own range, so shape is what reads. */
-function Spark({ points, up }) {
-  if (!points || points.length < 2) return null
-  const w = 64
-  const h = 18
-  const lo = Math.min(...points)
-  const hi = Math.max(...points)
-  const span = hi - lo || 1
-  const d = points
-    .map((v, i) => {
-      const x = (i / (points.length - 1)) * w
-      const y = h - ((v - lo) / span) * h
-      return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
-    })
-    .join(' ')
-  return (
-    <svg className="pa-spark" width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true">
-      <path d={d} fill="none" stroke={up ? 'var(--accent)' : 'var(--red)'} strokeWidth="1.5"
-            strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
 const money = (n) => (n === null || n === undefined ? '—' : n.toFixed(2))
 
 /** "2 min ago" for a live tick; the exact clock time once it's older. */
