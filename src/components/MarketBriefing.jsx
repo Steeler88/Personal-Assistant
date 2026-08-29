@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { postJson } from '../lib/api'
-import Spark from './Spark'
+import TickerList from './TickerList'
 import { todayKey } from '../lib/today'
 import { Card, Button, Badge } from '../design-kit'
 
@@ -16,10 +16,7 @@ function insightMessage(code) {
   return `Quotes updated, but the written read failed (${code}).`
 }
 
-const pct = (n) => (n === null || n === undefined ? '—' : `${n > 0 ? '+' : ''}${n.toFixed(2)}%`)
-const sign = (n) => (n === null || n === undefined ? '' : n >= 0 ? '' : ' pa-perf__v--down')
 
-const money = (n) => (n === null || n === undefined ? '—' : n.toFixed(2))
 
 /** "2 min ago" for a live tick; the exact clock time once it's older. */
 function ago(ts) {
@@ -196,93 +193,34 @@ export default function MarketBriefing() {
             {briefing.insight && <Badge tone="accent" dot>read</Badge>}
           </div>
 
-          {briefing.insight && <p className="pa-brief__insight">{briefing.insight}</p>}
+          {/* The read wants a readable measure, which left a third of the row
+              empty beside it. The headlines fill that column instead of
+              stacking underneath. */}
+          <div className="pa-brief__top">
+            {briefing.insight && <p className="pa-brief__insight">{briefing.insight}</p>}
 
-          <ul className="pa-quotes">
-            {(briefing.quotes ?? [])
-              .filter((q) => !watch || watch.length === 0 || watch.includes(q.symbol))
-              .map((q) => {
-              const up = (q.change_p ?? 0) >= 0
-              const p = q.perf ?? {}
-              return (
-                <li key={q.symbol} className="pa-quote">
-                  <div className="pa-quote__top">
-                    <span className="pa-quote__sym">{q.symbol}</span>
-                    <Spark points={q.spark} up={up} />
-                    <span className="pa-quote__price">
-                      {money(q.live?.price ?? q.close)}
-                      {q.live && <span className="pa-quote__dot" title="live price" />}
-                    </span>
-                    <span className={`pa-quote__chg${up ? '' : ' pa-quote__chg--down'}`}>
-                      {up ? '▲' : '▼'} {pct(q.change_p)}
-                    </span>
-                  </div>
+            {(briefing.headlines ?? []).length > 0 && (
+              <div className="pa-brief__heads">
+                <span className="pa-facts__k">Headlines</span>
+                <ul className="pa-heads">
+                  {briefing.headlines.map((h, i) => (
+                    <li key={i} className="pa-head">
+                      {h.link
+                        ? <a href={h.link} target="_blank" rel="noopener noreferrer">{h.title}</a>
+                        : h.title}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
 
-                  {(p.w1 !== undefined || q.rsi14 !== null) && (
-                    <div className="pa-perf">
-                      {q.live && q.close !== null && q.close !== undefined && (
-                        <span className="pa-perf__cell">
-                          <span className="pa-perf__k">prev</span>
-                          <span className="pa-perf__v pa-perf__v--plain">{money(q.close)}</span>
-                        </span>
-                      )}
-                      {[['1W', p.w1], ['1M', p.m1], ['YTD', p.ytd]].map(([label, v]) => (
-                        <span className="pa-perf__cell" key={label}>
-                          <span className="pa-perf__k">{label}</span>
-                          <span className={`pa-perf__v${sign(v)}`}>{pct(v)}</span>
-                        </span>
-                      ))}
-                      {q.rsi14 !== null && q.rsi14 !== undefined && (
-                        <span className="pa-perf__cell">
-                          <span className="pa-perf__k">RSI</span>
-                          <span className="pa-perf__v">{q.rsi14.toFixed(0)}</span>
-                        </span>
-                      )}
-                      {q.sma50 && q.close && (
-                        <span className="pa-perf__cell">
-                          <span className="pa-perf__k">50d</span>
-                          <span className={`pa-perf__v${q.close >= q.sma50 ? '' : ' pa-perf__v--down'}`}>
-                            {q.close >= q.sma50 ? 'above' : 'below'}
-                          </span>
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </li>
-              )
-            })}
-
-            {pending.map((sym) => (
-              <li key={sym} className="pa-quote pa-quote--pending">
-                <div className="pa-quote__top">
-                  <span className="pa-quote__sym">{sym}</span>
-                  <span className="pa-quote__waiting">not priced yet — refresh to include it</span>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <TickerList quotes={briefing.quotes ?? []} pending={pending} />
 
           {(briefing.skipped ?? []).length > 0 && (
             <p className="pa-brief__note" style={{ display: 'block', marginBottom: 'var(--space-4)' }}>
               No data for {briefing.skipped.join(', ')}
             </p>
-          )}
-
-          {(briefing.headlines ?? []).length > 0 && (
-            <>
-              <span className="pa-field__label" style={{ display: 'block', marginBottom: 'var(--space-2)' }}>
-                Headlines
-              </span>
-              <ul className="pa-heads">
-                {briefing.headlines.map((h, i) => (
-                  <li key={i} className="pa-head">
-                    {h.link
-                      ? <a href={h.link} target="_blank" rel="noopener noreferrer">{h.title}</a>
-                      : h.title}
-                  </li>
-                ))}
-              </ul>
-            </>
           )}
         </>
       )}

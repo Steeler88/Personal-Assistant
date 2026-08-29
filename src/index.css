@@ -2278,3 +2278,308 @@ body {
   letter-spacing: 0.06em;
   color: var(--attn);
 }
+
+/* ============================================================
+   Instrument: the ticker list
+   ============================================================ */
+
+.pa-tick { list-style: none; margin: 0 0 var(--space-5); padding: 0; }
+
+.pa-tick__item { border-bottom: 1px solid var(--border); }
+.pa-tick__item:last-child { border-bottom: none; }
+.pa-tick__item--open { background: var(--card-elevated); }
+
+/* The collapsed row says four things and gives each of them room. */
+.pa-tick__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto 22px;
+  align-items: center;
+  gap: var(--space-5);
+  width: 100%;
+  padding: var(--space-4) var(--space-2);
+  background: none;
+  border: 0;
+  border-left: 2px solid transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--duration) var(--ease), border-color var(--duration) var(--ease);
+}
+.pa-tick__head:hover { background: var(--card-elevated); }
+.pa-tick__head:focus-visible { outline: 2px solid var(--ui); outline-offset: -2px; }
+.pa-tick__item--open .pa-tick__head { border-left-color: var(--ui); }
+
+.pa-tick__id { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+
+.pa-tick__sym {
+  font-family: var(--font-mono);
+  font-size: var(--t-display);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  color: var(--fg);
+}
+
+.pa-tick__name {
+  font-size: var(--t-body);
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pa-tick__price {
+  font-family: var(--font-mono);
+  font-size: var(--t-display);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+  white-space: nowrap;
+}
+
+.pa-tick__chg {
+  font-family: var(--font-mono);
+  font-size: var(--t-value);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  min-width: 104px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.pa-tick__spark { display: block; line-height: 0; }
+@media (max-width: 900px) { .pa-tick__spark { display: none; } }
+
+.pa-tick__waiting {
+  grid-column: 2 / 5;
+  font-family: var(--font-mono);
+  font-size: var(--t-label);
+  color: var(--attn);
+  text-align: right;
+}
+
+.pa-tick__mark {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--t-body);
+  line-height: 1;
+  color: var(--muted);
+}
+
+/* ---------------- the expanded panel ---------------- */
+
+.pa-tick__body { padding: 0 var(--space-2) var(--space-6); }
+
+.pa-tick__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4) 0;
+  max-width: 62ch;
+}
+
+.pa-tick__ranges {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  padding-bottom: var(--space-4);
+}
+
+.pa-range {
+  padding: 5px var(--space-3);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--t-label);
+  cursor: pointer;
+  transition: color var(--duration) var(--ease), border-color var(--duration) var(--ease);
+}
+.pa-range:hover { color: var(--fg); border-color: var(--border-strong); }
+.pa-range:focus-visible { outline: 2px solid var(--ui); outline-offset: 2px; }
+.pa-range[aria-pressed='true'] { color: var(--now); border-color: var(--now); }
+
+.pa-tick__stored {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--t-label);
+  color: var(--muted);
+}
+
+/* Six blocks across the full width, rather than one column with two thirds
+   of the panel empty beside it. */
+/* Fixed columns, not auto-fit: there are exactly six blocks, and auto-fit
+   packed five across and orphaned the sixth on a row of its own. Three by two
+   divides evenly at every width. */
+.pa-tick__facts {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-5) var(--space-6);
+  padding: var(--space-5) 0;
+  border-top: 1px solid var(--border);
+  margin-top: var(--space-4);
+}
+
+.pa-facts { min-width: 0; }
+
+.pa-facts__k {
+  display: block;
+  margin-bottom: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--t-label);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.pa-facts__list { margin: 0; }
+
+.pa-facts__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 4px 0;
+  border-bottom: 1px dotted var(--border);
+}
+.pa-facts__row:last-child { border-bottom: none; }
+
+.pa-facts__row dt {
+  font-size: var(--t-body);
+  color: var(--muted-strong);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pa-facts__row dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--t-body);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+  white-space: nowrap;
+}
+
+@media (min-width: 620px) { .pa-tick__facts { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1000px) { .pa-tick__facts { grid-template-columns: repeat(3, 1fr); } }
+
+.pa-num--up { color: var(--ok); }
+.pa-num--down { color: var(--bad); }
+
+.pa-tick__extra {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--border);
+}
+
+/* ---------------- the charts ---------------- */
+
+.pa-tchart { display: flex; flex-direction: column; gap: 2px; }
+
+.pa-tchart__read {
+  display: flex;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  padding-bottom: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--t-label);
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.pa-tchart__date { color: var(--fg); }
+.pa-tchart__close { color: var(--fg); }
+
+.pa-tchart__svg {
+  display: block;
+  width: 100%;
+  height: 320px;
+  overflow: visible;
+  cursor: crosshair;
+}
+.pa-tchart__svg--short { height: 58px; }
+
+.pa-tchart__axis {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding-top: 4px;
+  font-family: var(--font-mono);
+  font-size: var(--t-label);
+  color: var(--muted);
+}
+
+.pa-tchart__legend { display: inline-flex; align-items: center; gap: 6px; }
+.pa-tchart__key { display: inline-block; width: 14px; height: 0; border-top-width: 2px; }
+.pa-tchart__key--50 { border-top: 2px dashed var(--muted); }
+.pa-tchart__key--200 { border-top: 2px solid var(--border-strong); margin-left: var(--space-3); }
+
+/* ---------------- month by month ---------------- */
+
+.pa-months {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 3px;
+  align-items: end;
+  padding-top: var(--space-2);
+}
+
+.pa-months__col { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
+
+.pa-months__plot { position: relative; width: 100%; height: 66px; }
+
+.pa-months__bar {
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  border-radius: 1px;
+}
+
+.pa-months__zero {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 1px solid var(--border-strong);
+}
+
+.pa-months__label,
+.pa-months__pct {
+  font-family: var(--font-mono);
+  font-size: var(--t-label);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The written read beside the headlines: prose keeps a readable measure and
+   the column next to it stops being empty. */
+.pa-brief__top {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-5) var(--space-6);
+  padding-bottom: var(--space-5);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--space-4);
+}
+@media (min-width: 900px) {
+  .pa-brief__top { grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); }
+}
+.pa-brief__heads { min-width: 0; }
+.pa-app .pa-brief__insight { margin: 0; max-width: none; }
+
+.pa-tchart__key--50 { border-top: 2px dashed var(--muted-strong); }
+.pa-tchart__key--200 { border-top: 2px solid var(--muted); margin-left: var(--space-3); }
+.pa-tchart__note { margin-left: var(--space-3); color: var(--muted); }
